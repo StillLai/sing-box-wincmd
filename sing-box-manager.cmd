@@ -706,42 +706,47 @@ echo.
 call :showStatus
 echo.
 echo.
-set "ML=%ESC%[96m  1 - 更新内核%ESC%[0m"                                              & call echo %%ML%%
-set "ML=%ESC%[96m  2 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
-set "ML=%ESC%[96m  3 - 安装/重装计划任务 (Mixed登录自启 + TUN手动)%ESC%[0m"             & call echo %%ML%%
-set "ML=%ESC%[96m  4 - 启动 (Mixed 模式)%ESC%[0m"                                     & call echo %%ML%%
-set "ML=%ESC%[96m  5 - 停止 sing-box%ESC%[0m"                                         & call echo %%ML%%
-set "ML=%ESC%[96m  6 - 重启 (Mixed 模式)%ESC%[0m"                                     & call echo %%ML%%
-set "ML=%ESC%[96m  7 - 切换到 TUN 模式%ESC%[0m"                                       & call echo %%ML%%
-set "ML=%ESC%[96m  8 - 切换回 Mixed 模式%ESC%[0m"                                     & call echo %%ML%%
-set "ML=%ESC%[96m  0 - 卸载所有计划任务%ESC%[0m"                                       & call echo %%ML%%
+call :echoColor 90 "  ── 日常操作 ──"
+set "ML=%ESC%[96m  1 - 启动 (Mixed 模式)%ESC%[0m"                                     & call echo %%ML%%
+set "ML=%ESC%[96m  2 - 停止 sing-box%ESC%[0m"                                         & call echo %%ML%%
+set "ML=%ESC%[96m  3 - 重启 (Mixed 模式)%ESC%[0m"                                     & call echo %%ML%%
+set "ML=%ESC%[96m  4 - 切换到 TUN 模式%ESC%[0m"                                       & call echo %%ML%%
+set "ML=%ESC%[96m  5 - 切换回 Mixed 模式%ESC%[0m"                                     & call echo %%ML%%
 echo.
-choice /c 123456780 /n /m "请选择操作: "
+call :echoColor 90 "  ── 维护 ──"
+set "ML=%ESC%[96m  6 - 更新内核%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  7 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
+echo.
+call :echoColor 90 "  ── 设置 ──"
+set "ML=%ESC%[96m  8 - 安装/重装计划任务 (Mixed登录自启 + TUN手动)%ESC%[0m"             & call echo %%ML%%
+set "ML=%ESC%[96m  9 - 卸载所有计划任务%ESC%[0m"                                       & call echo %%ML%%
+echo.
+choice /c 123456789 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 
 if "!CHOICE!"=="1" (
-    call :runAction "kernel"
-    goto :menu
-) else if "!CHOICE!"=="2" (
-    call :runAction "sub"
-    goto :menu
-) else if "!CHOICE!"=="3" (
-    call :runAction "install"
-    goto :menu
-) else if "!CHOICE!"=="4" (
     call :runAction "start"
     goto :menu
-) else if "!CHOICE!"=="5" (
+) else if "!CHOICE!"=="2" (
     call :runAction "stop"
     goto :menu
-) else if "!CHOICE!"=="6" (
+) else if "!CHOICE!"=="3" (
     call :runAction "restart"
     goto :menu
-) else if "!CHOICE!"=="7" (
+) else if "!CHOICE!"=="4" (
     call :runAction "tun"
     goto :menu
-) else if "!CHOICE!"=="8" (
+) else if "!CHOICE!"=="5" (
     call :runAction "mixed"
+    goto :menu
+) else if "!CHOICE!"=="6" (
+    call :runAction "kernel"
+    goto :menu
+) else if "!CHOICE!"=="7" (
+    call :runAction "sub"
+    goto :menu
+) else if "!CHOICE!"=="8" (
+    call :runAction "install"
     goto :menu
 ) else if "!CHOICE!"=="9" (
     call :runAction "uninstall"
