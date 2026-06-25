@@ -700,7 +700,7 @@ if not "%ACTION%"=="" (
 :menu
 cls
 call :echoColor 96 "========================================"
-call :echoColor 92 "  Sing-Box Manager"
+call :echoColor 92 "  Sing-Box Windows Cmd"
 call :echoColor 96 "========================================"
 echo.
 call :showStatus
