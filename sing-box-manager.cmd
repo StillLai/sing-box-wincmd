@@ -40,8 +40,13 @@ REM Global proxy prefix for file downloads (API queries go direct)
 if not defined PROXY_PREFIX set "PROXY_PREFIX=https://gh-proxy.org/"
 
 REM Validate required config
-if not defined GIST_ID (
-    echo [错误] config.env 中未设置 GIST_ID，请检查配置。
+if not defined MIXED_SUB_URL (
+    echo [错误] config.env 中未设置 MIXED_SUB_URL，请检查配置。
+    pause >nul
+    exit /b 1
+)
+if not defined TUN_SUB_URL (
+    echo [错误] config.env 中未设置 TUN_SUB_URL，请检查配置。
     pause >nul
     exit /b 1
 )
@@ -268,10 +273,6 @@ REM Update subscription
 REM ============================================================================
 :updateSub
 set "CONFIG_DIR=service\core"
-set "GIST_RAW=https://gist.githubusercontent.com/%GIST_ID%/raw"
-
-set "NO_TUN_URL=%GIST_RAW%/sing-box_with_providers_config_noTun.json"
-set "TUN_URL=%GIST_RAW%/sing-box_with_providers_config_tun_for_win.json"
 
 set "NO_TUN_FILE=%CONFIG_DIR%\config_noTun.json"
 set "TUN_FILE=%CONFIG_DIR%\config_tun.json"
@@ -290,7 +291,7 @@ if exist "%TUN_FILE%" (
 
 REM Download Mixed config
 call :echoInfo "正在下载 Mixed 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%NO_TUN_FILE%" "%PROXY_PREFIX%%NO_TUN_URL%" >nul 2>nul
+curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%NO_TUN_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
 call :validateDownload "%NO_TUN_FILE%" "Mixed"
 if !errorlevel! neq 0 (
     if exist "%NO_TUN_FILE%.bak" (
@@ -302,7 +303,7 @@ if !errorlevel! neq 0 (
 
 REM Download Tun config
 call :echoInfo "正在下载 Tun 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%TUN_FILE%" "%PROXY_PREFIX%%TUN_URL%" >nul 2>nul
+curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%TUN_FILE%" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
 call :validateDownload "%TUN_FILE%" "Tun"
 if !errorlevel! neq 0 (
     if exist "%TUN_FILE%.bak" (

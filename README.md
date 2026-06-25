@@ -38,19 +38,18 @@ cd sing-box-wincmd
 copy config.env.example config.env
 ```
 
-编辑 `config.env`，填入你的 Gist 信息：
+编辑 `config.env`，填入你的订阅地址：
 
 ```env
-# 格式: GitHub用户名/GistID
-GIST_ID=your_github_username/your_gist_id
+# Mixed 模式配置文件的完整下载地址
+MIXED_SUB_URL=https://gist.githubusercontent.com/username/gist_id/raw/config_noTun.json
+
+# TUN 模式配置文件的完整下载地址
+TUN_SUB_URL=https://gist.githubusercontent.com/username/gist_id/raw/config_tun.json
 
 # GitHub 下载代理（国内用户建议保留）
 PROXY_PREFIX=https://gh-proxy.org/
 ```
-
-你的 Gist 中需要包含以下两个文件：
-- `sing-box_with_providers_config_noTun.json` — Mixed 模式配置
-- `sing-box_with_providers_config_tun_for_win.json` — TUN 模式配置
 
 ### 3. 运行
 
