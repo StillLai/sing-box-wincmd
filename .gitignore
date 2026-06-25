@@ -1,0 +1,18 @@
+# sing-box core and runtime files
+service/core/
+
+# User config (contains private Gist ID)
+config.env
+
+# Backup files
+*.bak
+
+# Windows temp files
+*.tmp
+Thumbs.db
+Desktop.ini
+
+# Editor files
+.vscode/
+*.swp
+*.swo
