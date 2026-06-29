@@ -121,13 +121,9 @@ REM ============================================================================
 set "SINGBOX_EXE=service\core\sing-box.exe"
 set "API_URL=https://api.github.com/repos/reF1nd/sing-box-releases/releases"
 set "GITHUB_BASE=https://github.com/reF1nd/sing-box-releases/releases/download"
-set "TEMP_DIR=service\temp"
-set "RESTORE_NEEDED=0"
-
 call :echoInfo "正在检查最新版本..."
 
 if not exist "service\core" mkdir "service\core" >nul 2>nul
-if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%" >nul 2>nul
 
 REM Query GitHub API: curl downloads JSON, PowerShell parses tag_name to a text file, then set /p reads it
 REM (avoids chcp 65001 temp-PS1 encoding issue and for/f backtick pipe issue)
@@ -144,14 +140,10 @@ if !errorlevel! neq 0 (
 )
 call :echoSuccess "最新版本: !VERSION!"
 
-if exist "%SINGBOX_EXE%" (
-    copy /y "%SINGBOX_EXE%" "%SINGBOX_EXE%.bak" >nul 2>nul
-    call :echoInfo "已备份旧内核到 %SINGBOX_EXE%.bak"
-    set "RESTORE_NEEDED=1"
-)
+if exist "%SINGBOX_EXE%" copy /y "%SINGBOX_EXE%" "%SINGBOX_EXE%.bak" >nul 2>nul
 
 set "VERSION_NUM=!VERSION:~1!"
-set "TEMP_ZIP=%TEMP_DIR%\sing-box-!VERSION_NUM!-windows-amd64v3.zip"
+set "TEMP_ZIP=%temp%\sb_update.zip"
 
 REM Build download URL: prepend PROXY_PREFIX for the actual file download
 set "RAW_DOWNLOAD_URL=%GITHUB_BASE%/!VERSION!/sing-box-!VERSION_NUM!-windows-amd64v3.zip"
@@ -173,43 +165,6 @@ if !ZSIZE! lss 1000000 (
 
 call :echoSuccess "下载完成 (!ZSIZE! 字节)"
 
-set "EXE_NEW=%SINGBOX_EXE%.new"
-
-call :echoInfo "正在解压..."
-powershell -c "Expand-Archive -Path '!TEMP_ZIP!' -DestinationPath '%TEMP_DIR%' -Force" >nul 2>nul
-
-if !errorlevel! neq 0 (
-    call :echoError "解压失败"
-    goto :restoreKernel
-)
-
-set "NEW_EXE="
-for /r "%TEMP_DIR%" %%f in (*.exe) do (
-    echo %%~nxf | findstr /i "sing-box" >nul && (
-        set "NEW_EXE=%%f"
-    )
-)
-
-if not defined NEW_EXE (
-    call :echoError "解压后未找到 sing-box.exe"
-    goto :restoreKernel
-)
-
-if exist "%EXE_NEW%" del /f /q "%EXE_NEW%" >nul 2>nul
-copy /y "!NEW_EXE!" "%EXE_NEW%" >nul 2>nul
-
-if !errorlevel! neq 0 (
-    call :echoError "保存新内核失败"
-    goto :restoreKernel
-)
-
-for %%e in ("%EXE_NEW%") do set "ESIZE=%%~ze"
-if !ESIZE! lss 1000000 (
-    call :echoError "新内核文件异常 (!ESIZE! 字节)"
-    goto :restoreKernel
-)
-
-REM Check if any sing-box process is running
 REM Detect mode BEFORE killing so we know what to restart
 set "RUNNING_MODE="
 call :sbRunning "config_notun"
@@ -217,22 +172,29 @@ if !errorlevel! equ 0 set "RUNNING_MODE=mixed"
 call :sbRunning "config_tun"
 if !errorlevel! equ 0 set "RUNNING_MODE=tun"
 if defined RUNNING_MODE (
-    REM Process running — stop first, replace, then restart
     call :echoInfo "检测到 sing-box 正在运行 (%RUNNING_MODE%)，正在停止..."
     taskkill /f /im sing-box.exe >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
-    move /y "%EXE_NEW%" "%SINGBOX_EXE%" >nul 2>nul
-    call :echoSuccess "内核已替换 (!ESIZE! 字节)"
+)
+
+REM Extract sing-box.exe directly from ZIP to final location
+call :echoInfo "正在解压..."
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; $z = [IO.Compression.ZipFile]::OpenRead('!TEMP_ZIP!'); $e = $z.Entries | Where-Object { $_.Name -eq 'sing-box.exe' }; if ($e) { $s = $e.Open(); $f = [IO.File]::Create('%SINGBOX_EXE%'); $s.CopyTo($f); $f.Dispose(); $s.Dispose() }; $z.Dispose()" >nul 2>nul
+del /f /q "!TEMP_ZIP!" >nul 2>nul
+
+if !errorlevel! neq 0 (
+    call :echoError "解压失败"
+    goto :restoreKernel
+)
+
+call :echoSuccess "内核已更新"
+
+if defined RUNNING_MODE (
     call :echoInfo "正在重新启动 sing-box..."
     call :restartRunningMode !RUNNING_MODE!
-) else (
-    REM No process running — replace directly
-    move /y "%EXE_NEW%" "%SINGBOX_EXE%" >nul 2>nul
-    call :echoSuccess "内核已替换 (!ESIZE! 字节)"
 )
 
 del /f /q "%SINGBOX_EXE%.bak" >nul 2>nul
-if /i "!TEMP_DIR!"=="service\temp" if exist "!TEMP_DIR!" rd /s /q "!TEMP_DIR!" >nul 2>nul
 exit /b 0
 
 :restoreKernel
@@ -247,7 +209,7 @@ if exist "%SINGBOX_EXE%.bak" (
 ) else (
     call :echoWarn "未找到备份文件，无法恢复"
 )
-if /i "!TEMP_DIR!"=="service\temp" if exist "!TEMP_DIR!" rd /s /q "!TEMP_DIR!" >nul 2>nul
+del /f /q "%temp%\sb_update.zip" >nul 2>nul
 exit /b 1
 
 REM ============================================================================
@@ -293,40 +255,30 @@ set "TUN_FILE=%CONFIG_DIR%\config_tun.json"
 if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%" >nul 2>nul
 
 REM Backup existing configs before downloading
-if exist "%NO_TUN_FILE%" (
-    copy /y "%NO_TUN_FILE%" "%NO_TUN_FILE%.bak" >nul 2>nul
-    call :echoInfo "已备份 Mixed 配置到 %NO_TUN_FILE%.bak"
-)
-if exist "%TUN_FILE%" (
-    copy /y "%TUN_FILE%" "%TUN_FILE%.bak" >nul 2>nul
-    call :echoInfo "已备份 TUN 配置到 %TUN_FILE%.bak"
-)
+if exist "%NO_TUN_FILE%" copy /y "%NO_TUN_FILE%" "%NO_TUN_FILE%.bak" >nul 2>nul
+if exist "%TUN_FILE%" copy /y "%TUN_FILE%" "%TUN_FILE%.bak" >nul 2>nul
 
 REM Download Mixed config
 call :echoInfo "正在下载 Mixed 配置 (代理: %PROXY_PREFIX%)..."
 curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%NO_TUN_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
-call :validateDownload "%NO_TUN_FILE%" "Mixed"
 if !errorlevel! neq 0 (
-    if exist "%NO_TUN_FILE%.bak" (
-        copy /y "%NO_TUN_FILE%.bak" "%NO_TUN_FILE%" >nul 2>nul
-        call :echoWarn "Mixed 配置已从备份恢复"
-    )
+    call :echoError "Mixed 配置下载失败"
+    if exist "%NO_TUN_FILE%.bak" copy /y "%NO_TUN_FILE%.bak" "%NO_TUN_FILE%" >nul 2>nul
     exit /b 1
 )
 
 REM Download Tun config
 call :echoInfo "正在下载 Tun 配置 (代理: %PROXY_PREFIX%)..."
 curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%TUN_FILE%" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
-call :validateDownload "%TUN_FILE%" "Tun"
 if !errorlevel! neq 0 (
-    if exist "%TUN_FILE%.bak" (
-        copy /y "%TUN_FILE%.bak" "%TUN_FILE%" >nul 2>nul
-        call :echoWarn "TUN 配置已从备份恢复"
-    )
+    call :echoError "Tun 配置下载失败"
+    if exist "%TUN_FILE%.bak" copy /y "%TUN_FILE%.bak" "%TUN_FILE%" >nul 2>nul
     exit /b 1
 )
 
-call :echoSuccess "订阅配置已更新: %NO_TUN_FILE% 和 %TUN_FILE%"
+REM All downloads succeeded — clean up backups
+del /f /q "%NO_TUN_FILE%.bak" "%TUN_FILE%.bak" >nul 2>nul
+call :echoSuccess "订阅配置已更新"
 
 REM Restart running instance to apply new config
 REM Detect mode BEFORE killing so we know what to restart
@@ -344,22 +296,6 @@ if defined RUNNING_MODE (
     call :echoInfo "无运行中的实例，新配置将在下次启动时生效"
 )
 exit /b 0
-
-REM Validate downloaded file size
-:validateDownload
-if exist "%~1" (
-    for %%f in ("%~1") do set "VSIZE=%%~zf"
-    if !VSIZE! lss 1024 (
-        call :echoError "%~2 配置文件异常 (!VSIZE! 字节)"
-        del /f /q "%~1" >nul 2>nul
-        exit /b 1
-    )
-    call :echoInfo "  %~2 配置文件: !VSIZE! 字节"
-    exit /b 0
-) else (
-    call :echoError "%~2 配置文件下载失败"
-    exit /b 1
-)
 
 REM ============================================================================
 REM Install scheduled tasks (Mixed=auto on logon + TUN=exists but no auto)
