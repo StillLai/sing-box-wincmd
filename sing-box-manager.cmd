@@ -210,16 +210,21 @@ if !ESIZE! lss 1000000 (
 )
 
 REM Check if any sing-box process is running
-call :sbRunning "config"
-if !errorlevel! equ 0 (
+REM Detect mode BEFORE killing so we know what to restart
+set "RUNNING_MODE="
+call :sbRunning "config_notun"
+if !errorlevel! equ 0 set "RUNNING_MODE=mixed"
+call :sbRunning "config_tun"
+if !errorlevel! equ 0 set "RUNNING_MODE=tun"
+if defined RUNNING_MODE (
     REM Process running — stop first, replace, then restart
-    call :echoInfo "检测到 sing-box 正在运行，正在停止..."
+    call :echoInfo "检测到 sing-box 正在运行 (%RUNNING_MODE%)，正在停止..."
     taskkill /f /im sing-box.exe >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
     move /y "%EXE_NEW%" "%SINGBOX_EXE%" >nul 2>nul
     call :echoSuccess "内核已替换 (!ESIZE! 字节)"
     call :echoInfo "正在重新启动 sing-box..."
-    call :restartRunningMode
+    call :restartRunningMode !RUNNING_MODE!
 ) else (
     REM No process running — replace directly
     move /y "%EXE_NEW%" "%SINGBOX_EXE%" >nul 2>nul
@@ -249,6 +254,18 @@ REM ============================================================================
 REM Restart whichever mode was running (mixed or tun)
 REM ============================================================================
 :restartRunningMode
+REM If a mode hint is passed as %1, skip detection and restart directly
+if /i "%~1"=="mixed" (
+    wscript.exe "%VBS_MIXED%" >nul 2>nul
+    call :echoSuccess "Mixed 模式已重启"
+    goto :eof
+)
+if /i "%~1"=="tun" (
+    wscript.exe "%VBS_TUN%" >nul 2>nul
+    call :echoSuccess "TUN 模式已重启"
+    goto :eof
+)
+REM No hint — detect from running processes
 call :sbRunning "config_notun"
 if !errorlevel! equ 0 (
     wscript.exe "%VBS_MIXED%" >nul 2>nul
@@ -312,12 +329,17 @@ if !errorlevel! neq 0 (
 call :echoSuccess "订阅配置已更新: %NO_TUN_FILE% 和 %TUN_FILE%"
 
 REM Restart running instance to apply new config
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    call :echoInfo "检测到 sing-box 正在运行，正在重启以应用新配置..."
+REM Detect mode BEFORE killing so we know what to restart
+set "RUNNING_MODE="
+call :sbRunning "config_notun"
+if !errorlevel! equ 0 set "RUNNING_MODE=mixed"
+call :sbRunning "config_tun"
+if !errorlevel! equ 0 set "RUNNING_MODE=tun"
+if defined RUNNING_MODE (
+    call :echoInfo "检测到 sing-box 正在运行 (%RUNNING_MODE%)，正在重启以应用新配置..."
     taskkill /f /im sing-box.exe >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
-    call :restartRunningMode
+    call :restartRunningMode !RUNNING_MODE!
 ) else (
     call :echoInfo "无运行中的实例，新配置将在下次启动时生效"
 )
