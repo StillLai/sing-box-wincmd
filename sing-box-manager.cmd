@@ -129,17 +129,13 @@ call :echoInfo "正在检查最新版本..."
 if not exist "service\core" mkdir "service\core" >nul 2>nul
 if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%" >nul 2>nul
 
-REM Force TLS 1.2, direct connection for API (via temp .ps1 to avoid cmd special char issues)
-set "PS_SCRIPT=%temp%\sb_check_version.ps1"
-(
-    echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    echo try { $r = Invoke-RestMethod -Uri '%API_URL%/latest' -UseBasicParsing -TimeoutSec 15; Write-Output $r.tag_name }
-    echo catch { Write-Output 'API_ERROR' }
-) > "%PS_SCRIPT%"
-for /f "usebackq delims=" %%v in (`powershell -ExecutionPolicy Bypass -File "%PS_SCRIPT%" 2^>nul`) do (
-    set "VERSION=%%v"
-)
-del /f /q "%PS_SCRIPT%" >nul 2>nul
+REM Query GitHub API: curl downloads JSON, PowerShell parses tag_name to a text file, then set /p reads it
+REM (avoids chcp 65001 temp-PS1 encoding issue and for/f backtick pipe issue)
+curl -s --connect-timeout 15 --max-time 15 -o "%temp%\sb_ver.json" "%API_URL%/latest" >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$j = Get-Content '%temp%\sb_ver.json' -Raw | ConvertFrom-Json; $j.tag_name | Out-File '%temp%\sb_ver.txt' -Encoding ascii" >nul 2>nul
+set "VERSION="
+if exist "%temp%\sb_ver.txt" set /p VERSION=<"%temp%\sb_ver.txt"
+del /f /q "%temp%\sb_ver.json" "%temp%\sb_ver.txt" >nul 2>nul
 
 echo !VERSION! | findstr /b /c:"v" >nul 2>nul
 if !errorlevel! neq 0 (
