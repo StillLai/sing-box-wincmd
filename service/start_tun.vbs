@@ -10,6 +10,25 @@ coreDir = fso.BuildPath(scriptDir, "core")
 exePath = fso.BuildPath(coreDir, "sing-box.exe")
 configPath = fso.BuildPath(coreDir, "config_tun.json")
 
+' Wait for internet connectivity (max 10 minutes, check every 5s)
+Dim elapsed, http
+elapsed = 0
+Set http = CreateObject("WinHttp.WinHttpRequest.5.1")
+http.SetTimeouts 5000, 5000, 5000, 5000
+Do While elapsed < 600
+    On Error Resume Next
+    http.Open "GET", "http://connect.rom.miui.com/generate_204", False
+    http.Send
+    If Err.Number = 0 And http.Status = 204 Then
+        On Error GoTo 0
+        Exit Do
+    End If
+    On Error GoTo 0
+    WScript.Sleep 5000
+    elapsed = elapsed + 5
+Loop
+If elapsed >= 600 Then WScript.Quit 1
+
 ' Check if sing-box.exe is already running with this config
 Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
 Set colProcesses = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE Name='sing-box.exe'")
