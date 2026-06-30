@@ -56,8 +56,8 @@ set "TASK_MIXED=sing-box-mixed"
 set "TASK_TUN=sing-box-tun"
 
 REM VBS launchers
-set "VBS_MIXED=%~dp0service\start_mixed.vbs"
-set "VBS_TUN=%~dp0service\start_tun.vbs"
+set "VBS_MIXED=%~dp0service\start-mixed.vbs"
+set "VBS_TUN=%~dp0service\start-tun.vbs"
 
 goto :main
 
@@ -103,7 +103,7 @@ exit /b 1
 
 REM ============================================================================
 REM Check if sing-box is running with a specific config
-REM   %1 = config keyword (e.g. "config_notun" or "config_tun")
+REM   %1 = config keyword (e.g. "config-mixed" or "config-tun")
 REM   exit /b 0 if running, 1 otherwise
 REM ============================================================================
 :sbRunning
@@ -167,9 +167,9 @@ call :echoSuccess "下载完成 (!ZSIZE! 字节)"
 
 REM Detect mode BEFORE killing so we know what to restart
 set "RUNNING_MODE="
-call :sbRunning "config_notun"
+call :sbRunning "config-mixed"
 if !errorlevel! equ 0 set "RUNNING_MODE=mixed"
-call :sbRunning "config_tun"
+call :sbRunning "config-tun"
 if !errorlevel! equ 0 set "RUNNING_MODE=tun"
 if defined RUNNING_MODE (
     call :echoInfo "检测到 sing-box 正在运行 (%RUNNING_MODE%)，正在停止..."
@@ -228,13 +228,13 @@ if /i "%~1"=="tun" (
     goto :eof
 )
 REM No hint — detect from running processes
-call :sbRunning "config_notun"
+call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
     wscript.exe "%VBS_MIXED%" >nul 2>nul
     call :echoSuccess "Mixed 模式已重启"
     goto :eof
 )
-call :sbRunning "config_tun"
+call :sbRunning "config-tun"
 if !errorlevel! equ 0 (
     wscript.exe "%VBS_TUN%" >nul 2>nul
     call :echoSuccess "TUN 模式已重启"
@@ -249,21 +249,21 @@ REM ============================================================================
 :updateSub
 set "CONFIG_DIR=service\core"
 
-set "NO_TUN_FILE=%CONFIG_DIR%\config_noTun.json"
-set "TUN_FILE=%CONFIG_DIR%\config_tun.json"
+set "MIXED_FILE=%CONFIG_DIR%\config-mixed.json"
+set "TUN_FILE=%CONFIG_DIR%\config-tun.json"
 
 if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%" >nul 2>nul
 
 REM Backup existing configs before downloading
-if exist "%NO_TUN_FILE%" copy /y "%NO_TUN_FILE%" "%NO_TUN_FILE%.bak" >nul 2>nul
+if exist "%MIXED_FILE%" copy /y "%MIXED_FILE%" "%MIXED_FILE%.bak" >nul 2>nul
 if exist "%TUN_FILE%" copy /y "%TUN_FILE%" "%TUN_FILE%.bak" >nul 2>nul
 
 REM Download Mixed config
 call :echoInfo "正在下载 Mixed 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%NO_TUN_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
+curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%MIXED_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Mixed 配置下载失败"
-    if exist "%NO_TUN_FILE%.bak" copy /y "%NO_TUN_FILE%.bak" "%NO_TUN_FILE%" >nul 2>nul
+    if exist "%MIXED_FILE%.bak" copy /y "%MIXED_FILE%.bak" "%MIXED_FILE%" >nul 2>nul
     exit /b 1
 )
 
@@ -277,15 +277,15 @@ if !errorlevel! neq 0 (
 )
 
 REM All downloads succeeded — clean up backups
-del /f /q "%NO_TUN_FILE%.bak" "%TUN_FILE%.bak" >nul 2>nul
+del /f /q "%MIXED_FILE%.bak" "%TUN_FILE%.bak" >nul 2>nul
 call :echoSuccess "订阅配置已更新"
 
 REM Restart running instance to apply new config
 REM Detect mode BEFORE killing so we know what to restart
 set "RUNNING_MODE="
-call :sbRunning "config_notun"
+call :sbRunning "config-mixed"
 if !errorlevel! equ 0 set "RUNNING_MODE=mixed"
-call :sbRunning "config_tun"
+call :sbRunning "config-tun"
 if !errorlevel! equ 0 set "RUNNING_MODE=tun"
 if defined RUNNING_MODE (
     call :echoInfo "检测到 sing-box 正在运行 (%RUNNING_MODE%)，正在重启以应用新配置..."
@@ -329,8 +329,8 @@ call :taskExists "%TASK_TUN%" && (
 )
 
 REM Get absolute path to VBS scripts
-set "VBS_MIXED_ABS=%~dp0service\start_mixed.vbs"
-set "VBS_TUN_ABS=%~dp0service\start_tun.vbs"
+set "VBS_MIXED_ABS=%~dp0service\start-mixed.vbs"
+set "VBS_TUN_ABS=%~dp0service\start-tun.vbs"
 
 REM Install Mixed task (runs on every user logon, with highest privilege)
 call :echoInfo "创建 %TASK_MIXED% 计划任务 (登录时自动启动, 最高权限)..."
@@ -355,7 +355,7 @@ REM Start Mixed mode
 call :echoInfo "启动 sing-box (Mixed 模式)..."
 wscript.exe "%VBS_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config_notun"
+call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
     call :echoSuccess "sing-box (Mixed 模式) 已启动"
 ) else (
@@ -384,7 +384,7 @@ if !errorlevel! equ 0 (
 
 wscript.exe "%VBS_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config_notun"
+call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
     call :echoSuccess "sing-box (Mixed 模式) 已启动"
 ) else (
@@ -423,7 +423,7 @@ if !errorlevel! equ 0 (
 call :echoInfo "启动 sing-box (Mixed 模式)..."
 wscript.exe "%VBS_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config_notun"
+call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
     call :echoSuccess "sing-box (Mixed 模式) 已重启"
 ) else (
@@ -435,8 +435,8 @@ REM ============================================================================
 REM Switch to TUN mode: stop current, start TUN
 REM ============================================================================
 :switchToTun
-if not exist "service\core\config_tun.json" (
-    call :echoError "未找到 config_tun.json，请先更新订阅"
+if not exist "service\core\config-tun.json" (
+    call :echoError "未找到 config-tun.json，请先更新订阅"
     exit /b 1
 )
 call :taskExists "%TASK_TUN%"
@@ -459,7 +459,7 @@ REM Start TUN mode
 call :echoInfo "启动 sing-box (TUN 模式)..."
 wscript.exe "%VBS_TUN%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config_tun"
+call :sbRunning "config-tun"
 if !errorlevel! equ 0 (
     call :echoSuccess "已切换到 TUN 模式"
 ) else (
@@ -485,7 +485,7 @@ if !errorlevel! equ 0 (
 call :echoInfo "启动 sing-box (Mixed 模式)..."
 wscript.exe "%VBS_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config_notun"
+call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
     call :echoSuccess "已切换回 Mixed 模式"
 ) else (
@@ -542,9 +542,9 @@ set "MIXED_TASK=!errorlevel!"
 call :taskExists "%TASK_TUN%"
 set "TUN_TASK=!errorlevel!"
 
-call :sbRunning "config_notun"
+call :sbRunning "config-mixed"
 set "MIXED_RUN=!errorlevel!"
-call :sbRunning "config_tun"
+call :sbRunning "config-tun"
 set "TUN_RUN=!errorlevel!"
 
 if !MIXED_TASK! equ 0 (

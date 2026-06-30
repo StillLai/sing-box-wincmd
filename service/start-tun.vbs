@@ -8,7 +8,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
 coreDir = fso.BuildPath(scriptDir, "core")
 exePath = fso.BuildPath(coreDir, "sing-box.exe")
-configPath = fso.BuildPath(coreDir, "config_tun.json")
+configPath = fso.BuildPath(coreDir, "config-tun.json")
 
 ' Wait for internet connectivity (max 10 minutes, check every 5s)
 Dim elapsed, http
@@ -33,7 +33,7 @@ If elapsed >= 600 Then WScript.Quit 1
 Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
 Set colProcesses = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE Name='sing-box.exe'")
 For Each objProcess in colProcesses
-    If InStr(LCase(objProcess.CommandLine), "config_tun") > 0 Then
+    If InStr(LCase(objProcess.CommandLine), "config-tun") > 0 Then
         WScript.Quit 0
     End If
 Next
