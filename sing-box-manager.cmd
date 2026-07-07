@@ -494,6 +494,35 @@ if !errorlevel! equ 0 (
 exit /b !errorlevel!
 
 REM ============================================================================
+REM Start or restart Mixed mode (unified: stop if running, then start)
+REM ============================================================================
+:startOrRestartMixed
+call :taskExists "%TASK_MIXED%"
+if !errorlevel! neq 0 (
+    call :echoError "%TASK_MIXED% 任务尚未安装，请先安装"
+    exit /b 1
+)
+
+REM Stop any running sing-box first
+call :sbRunning "config"
+if !errorlevel! equ 0 (
+    call :echoInfo "停止当前运行的 sing-box..."
+    taskkill /f /im sing-box.exe >nul 2>nul
+    timeout /t 2 /nobreak >nul 2>nul
+)
+
+call :echoInfo "启动 sing-box (Mixed 模式)..."
+wscript.exe "%VBS_MIXED%" >nul 2>nul
+timeout /t 3 /nobreak >nul 2>nul
+call :sbRunning "config-mixed"
+if !errorlevel! equ 0 (
+    call :echoSuccess "sing-box (Mixed 模式) 已启动"
+) else (
+    call :echoError "启动失败"
+)
+exit /b !errorlevel!
+
+REM ============================================================================
 REM Uninstall scheduled tasks
 REM ============================================================================
 :uninstallTask
@@ -585,26 +614,32 @@ if /i "%ACT%"=="kernel" (
     call :installTask
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="start" (
-    call :startMixed
+    call :startOrRestartMixed
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="stop" (
     call :stopSingbox
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="restart" (
-    call :restartMixed
+    call :startOrRestartMixed
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="tun" (
     call :switchToTun
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="mixed" (
-    call :switchToMixed
+    call :startOrRestartMixed
+    set "SUCCESS=!errorlevel!"
+) else if /i "%ACT%"=="start-mixed" (
+    call :startOrRestartMixed
+    set "SUCCESS=!errorlevel!"
+) else if /i "%ACT%"=="start-tun" (
+    call :switchToTun
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="uninstall" (
     call :uninstallTask
     set "SUCCESS=!errorlevel!"
 ) else (
     call :echoError "未知操作: %ACT%"
-    call :echoInfo "用法: kernel / sub / install / start / stop / restart / tun / mixed / uninstall"
+    call :echoInfo "用法: kernel / sub / install / start-mixed / start-tun / stop / uninstall"
     set "SUCCESS=1"
 )
 
@@ -645,49 +680,45 @@ call :showStatus
 echo.
 echo.
 call :echoColor 90 "  ── 日常操作 ──"
-set "ML=%ESC%[96m  1 - 启动 (Mixed 模式)%ESC%[0m"                                     & call echo %%ML%%
-set "ML=%ESC%[96m  2 - 停止 sing-box%ESC%[0m"                                         & call echo %%ML%%
-set "ML=%ESC%[96m  3 - 重启 (Mixed 模式)%ESC%[0m"                                     & call echo %%ML%%
-set "ML=%ESC%[96m  4 - 切换到 TUN 模式%ESC%[0m"                                       & call echo %%ML%%
-set "ML=%ESC%[96m  5 - 切换回 Mixed 模式%ESC%[0m"                                     & call echo %%ML%%
+set "ML=%ESC%[96m  1 - 启动/重启 (Mixed 模式)%ESC%[0m"                                & call echo %%ML%%
+set "ML=%ESC%[96m  2 - 启动/重启 (TUN 模式)%ESC%[0m"                                  & call echo %%ML%%
+set "ML=%ESC%[96m  3 - 停止 sing-box%ESC%[0m"                                         & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 维护 ──"
-set "ML=%ESC%[96m  6 - 更新内核%ESC%[0m"                                              & call echo %%ML%%
-set "ML=%ESC%[96m  7 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  4 - 更新内核%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  5 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 设置 ──"
-set "ML=%ESC%[96m  8 - 安装/重装计划任务 (Mixed登录自启 + TUN手动)%ESC%[0m"             & call echo %%ML%%
-set "ML=%ESC%[96m  9 - 卸载所有计划任务%ESC%[0m"                                       & call echo %%ML%%
+set "ML=%ESC%[96m  6 - 安装/重装计划任务 (Mixed登录自启 + TUN手动)%ESC%[0m"             & call echo %%ML%%
+set "ML=%ESC%[96m  7 - 卸载所有计划任务%ESC%[0m"                                       & call echo %%ML%%
 echo.
-choice /c 123456789 /n /m "请选择操作: "
+set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
+echo.
+choice /c 12345670 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 
 if "!CHOICE!"=="1" (
-    call :runAction "start"
+    call :runAction "start-mixed"
     goto :menu
 ) else if "!CHOICE!"=="2" (
-    call :runAction "stop"
-    goto :menu
-) else if "!CHOICE!"=="3" (
-    call :runAction "restart"
-    goto :menu
-) else if "!CHOICE!"=="4" (
     call :runAction "tun"
     goto :menu
-) else if "!CHOICE!"=="5" (
-    call :runAction "mixed"
+) else if "!CHOICE!"=="3" (
+    call :runAction "stop"
     goto :menu
-) else if "!CHOICE!"=="6" (
+) else if "!CHOICE!"=="4" (
     call :runAction "kernel"
     goto :menu
-) else if "!CHOICE!"=="7" (
+) else if "!CHOICE!"=="5" (
     call :runAction "sub"
     goto :menu
-) else if "!CHOICE!"=="8" (
+) else if "!CHOICE!"=="6" (
     call :runAction "install"
     goto :menu
-) else if "!CHOICE!"=="9" (
+) else if "!CHOICE!"=="7" (
     call :runAction "uninstall"
+    goto :menu
+) else if "!CHOICE!"=="8" (
     goto :menu
 ) else (
     call :echoError "无效选项"
