@@ -37,7 +37,7 @@ for /f "usebackq tokens=1,* delims==" %%a in ("%CONFIG_FILE%") do (
 )
 
 REM Global proxy prefix for file downloads (API queries go direct)
-if not defined PROXY_PREFIX set "PROXY_PREFIX=https://gh-proxy.org/"
+REM If not set or empty, downloads will go directly to GitHub
 
 REM Validate required config
 if not defined MIXED_SUB_URL (
@@ -242,7 +242,7 @@ if /i "%~1"=="mixed" (
     goto :eof
 )
 if /i "%~1"=="tun" (
-    wscript.exe "%VBS_TUN%" >nul 2>nul
+    schtasks /run /tn "%TASK_TUN%" >nul 2>nul
     call :waitTunReady
     call :echoSuccess "TUN 模式已重启"
     goto :eof
@@ -256,7 +256,7 @@ if !errorlevel! equ 0 (
 )
 call :sbRunning "config-tun"
 if !errorlevel! equ 0 (
-    wscript.exe "%VBS_TUN%" >nul 2>nul
+    schtasks /run /tn "%TASK_TUN%" >nul 2>nul
     call :waitTunReady
     call :echoSuccess "TUN 模式已重启"
     goto :eof
@@ -362,15 +362,17 @@ if !errorlevel! neq 0 (
 )
 call :echoSuccess "%TASK_MIXED% 任务创建成功"
 
-REM Install TUN task (exists but no auto-trigger — manual start only)
-call :echoInfo "创建 %TASK_TUN% 计划任务 (手动启动, 最高权限)..."
-schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%VBS_TUN_ABS%\"" /sc onlogon /rl highest /f >nul 2>nul
+REM Install TUN task (runs as SYSTEM for WinDivert/strict_route compatibility)
+set "SINGBOX_EXE_ABS=%~dp0service\core\sing-box.exe"
+set "TUN_CONFIG_ABS=%~dp0service\core\config-tun.json"
+call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM 账户, 开机启动)..."
+schtasks /create /tn "%TASK_TUN%" /tr "\"!SINGBOX_EXE_ABS!\" run -c \"!TUN_CONFIG_ABS!\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "%TASK_TUN% 任务创建失败"
     exit /b 1
 )
 schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
-call :echoSuccess "%TASK_TUN% 任务创建成功 (已禁用自动触发，可通过脚本手动启动)"
+call :echoSuccess "%TASK_TUN% 任务创建成功 (SYSTEM 账户运行，已禁用自动触发)"
 
 REM Start Mixed mode
 call :echoInfo "启动 sing-box (Mixed 模式)..."
@@ -476,9 +478,9 @@ if !errorlevel! equ 0 (
     timeout /t 2 /nobreak >nul 2>nul
 )
 
-REM Start TUN mode
-call :echoInfo "启动 sing-box (TUN 模式)..."
-wscript.exe "%VBS_TUN%" >nul 2>nul
+REM Start TUN mode via SYSTEM scheduled task (for WinDivert/strict_route compatibility)
+call :echoInfo "启动 sing-box (TUN 模式, SYSTEM 账户)..."
+schtasks /run /tn "%TASK_TUN%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
 call :sbRunning "config-tun"
 if !errorlevel! equ 0 (
