@@ -38,6 +38,6 @@ For Each objProcess in colProcesses
     End If
 Next
 
-' Launch sing-box hidden (0 = hidden window, False = don't wait)
-WshShell.CurrentDirectory = coreDir
-WshShell.Run """" & exePath & """ run -c """ & configPath & """", 0, False
+' Launch sing-box hidden via ShellExecute (inherits admin token reliably)
+Set shellApp = CreateObject("Shell.Application")
+shellApp.ShellExecute exePath, "run -c """ & configPath & """", coreDir, "open", 0
