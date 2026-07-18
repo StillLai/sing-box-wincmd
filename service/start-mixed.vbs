@@ -38,6 +38,17 @@ For Each objProcess in colProcesses
     End If
 Next
 
+' Rotate log files: rename *.log to *.old.log (overwrite if exists, skip *.old.log)
+Dim logFolder, logFile, oldLogPath
+Set logFolder = fso.GetFolder(coreDir)
+For Each logFile In logFolder.Files
+    If LCase(fso.GetExtensionName(logFile.Name)) = "log" And LCase(Right(logFile.Name, 8)) <> ".old.log" Then
+        oldLogPath = fso.BuildPath(coreDir, fso.GetBaseName(logFile.Name) & ".old.log")
+        If fso.FileExists(oldLogPath) Then fso.DeleteFile oldLogPath, True
+        fso.MoveFile logFile.Path, oldLogPath
+    End If
+Next
+
 ' Launch sing-box hidden via ShellExecute (inherits admin token reliably)
 Set shellApp = CreateObject("Shell.Application")
 shellApp.ShellExecute exePath, "run -c """ & configPath & """", coreDir, "open", 0
