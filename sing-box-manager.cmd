@@ -379,6 +379,14 @@ if !errorlevel! neq 0 (
 schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
 call :echoSuccess "%TASK_TUN% 任务创建成功 (已禁用自动触发)"
 
+REM Stop any running sing-box first
+call :sbRunning "config"
+if !errorlevel! equ 0 (
+    call :echoInfo "停止当前运行的 sing-box..."
+    taskkill /f /im sing-box.exe >nul 2>nul
+    timeout /t 2 /nobreak >nul 2>nul
+)
+
 REM Start Mixed mode
 call :echoInfo "启动 sing-box (Mixed 模式)..."
 call :startSb "!MIXED_CONFIG_ABS!"
