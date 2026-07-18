@@ -55,9 +55,10 @@ REM Scheduled task names
 set "TASK_MIXED=sing-box-mixed"
 set "TASK_TUN=sing-box-tun"
 
-REM VBS launchers
-set "VBS_MIXED=%~dp0service\start-mixed.vbs"
-set "VBS_TUN=%~dp0service\start-tun.vbs"
+REM sing-box paths (used by SYSTEM scheduled tasks)
+set "SINGBOX_EXE_ABS=%~dp0service\core\sing-box.exe"
+set "MIXED_CONFIG_ABS=%~dp0service\core\config-mixed.json"
+set "TUN_CONFIG_ABS=%~dp0service\core\config-tun.json"
 
 goto :main
 
@@ -237,7 +238,7 @@ REM ============================================================================
 :restartRunningMode
 REM If a mode hint is passed as %1, skip detection and restart directly
 if /i "%~1"=="mixed" (
-    wscript.exe "%VBS_MIXED%" >nul 2>nul
+schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
     call :echoSuccess "Mixed 模式已重启"
     goto :eof
 )
@@ -250,7 +251,7 @@ if /i "%~1"=="tun" (
 REM No hint — detect from running processes
 call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
-    wscript.exe "%VBS_MIXED%" >nul 2>nul
+    schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
     call :echoSuccess "Mixed 模式已重启"
     goto :eof
 )
@@ -322,12 +323,8 @@ REM ============================================================================
 REM Install scheduled tasks (Mixed=auto on logon + TUN=exists but no auto)
 REM ============================================================================
 :installTask
-if not exist "%VBS_MIXED%" (
-    call :echoError "未找到 %VBS_MIXED%"
-    exit /b 1
-)
-if not exist "%VBS_TUN%" (
-    call :echoError "未找到 %VBS_TUN%"
+if not exist "!SINGBOX_EXE_ABS!" (
+    call :echoError "未找到 sing-box.exe，请先更新内核"
     exit /b 1
 )
 
@@ -349,22 +346,16 @@ call :taskExists "%TASK_TUN%" && (
     schtasks /delete /tn "%TASK_TUN%" /f >nul 2>nul
 )
 
-REM Get absolute path to VBS scripts
-set "VBS_MIXED_ABS=%~dp0service\start-mixed.vbs"
-set "VBS_TUN_ABS=%~dp0service\start-tun.vbs"
-
-REM Install Mixed task (runs on every user logon, with highest privilege)
-call :echoInfo "创建 %TASK_MIXED% 计划任务 (登录时自动启动, 最高权限)..."
-schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%VBS_MIXED_ABS%\"" /sc onlogon /rl highest /f >nul 2>nul
+REM Install Mixed task (runs as SYSTEM)
+call :echoInfo "创建 %TASK_MIXED% 计划任务 (SYSTEM 账户, 开机启动)..."
+schtasks /create /tn "%TASK_MIXED%" /tr "\"!SINGBOX_EXE_ABS!\" run -c \"!MIXED_CONFIG_ABS!\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "%TASK_MIXED% 任务创建失败"
     exit /b 1
 )
 call :echoSuccess "%TASK_MIXED% 任务创建成功"
 
-REM Install TUN task (runs as SYSTEM for WinDivert/strict_route compatibility)
-set "SINGBOX_EXE_ABS=%~dp0service\core\sing-box.exe"
-set "TUN_CONFIG_ABS=%~dp0service\core\config-tun.json"
+REM Install TUN task (runs as SYSTEM, disabled by default)
 call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM 账户, 开机启动)..."
 schtasks /create /tn "%TASK_TUN%" /tr "\"!SINGBOX_EXE_ABS!\" run -c \"!TUN_CONFIG_ABS!\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
 if !errorlevel! neq 0 (
@@ -376,7 +367,7 @@ call :echoSuccess "%TASK_TUN% 任务创建成功 (SYSTEM 账户运行，已禁�
 
 REM Start Mixed mode
 call :echoInfo "启动 sing-box (Mixed 模式)..."
-wscript.exe "%VBS_MIXED%" >nul 2>nul
+schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
 call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
@@ -405,7 +396,7 @@ if !errorlevel! equ 0 (
     timeout /t 2 /nobreak >nul 2>nul
 )
 
-wscript.exe "%VBS_MIXED%" >nul 2>nul
+schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
 call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
@@ -444,7 +435,7 @@ if !errorlevel! equ 0 (
     timeout /t 2 /nobreak >nul 2>nul
 )
 call :echoInfo "启动 sing-box (Mixed 模式)..."
-wscript.exe "%VBS_MIXED%" >nul 2>nul
+schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
 call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
@@ -488,7 +479,7 @@ if !errorlevel! equ 0 (
     call :echoSuccess "已切换到 TUN 模式"
 ) else (
     call :echoError "TUN 模式启动失败，尝试恢复 Mixed..."
-    wscript.exe "%VBS_MIXED%" >nul 2>nul
+    schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
 )
 exit /b !errorlevel!
 
@@ -507,7 +498,7 @@ if !errorlevel! equ 0 (
 )
 
 call :echoInfo "启动 sing-box (Mixed 模式)..."
-wscript.exe "%VBS_MIXED%" >nul 2>nul
+schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
 call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
@@ -536,7 +527,7 @@ if !errorlevel! equ 0 (
 )
 
 call :echoInfo "启动 sing-box (Mixed 模式)..."
-wscript.exe "%VBS_MIXED%" >nul 2>nul
+schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
 call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
