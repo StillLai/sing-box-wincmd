@@ -150,7 +150,7 @@ set "RAW_DOWNLOAD_URL=%GITHUB_BASE%/!VERSION!/sing-box-!VERSION_NUM!-windows-amd
 set "PROXY_DOWNLOAD_URL=%PROXY_PREFIX%%RAW_DOWNLOAD_URL%"
 
 call :echoInfo "正在下载 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "!TEMP_ZIP!" "!PROXY_DOWNLOAD_URL!" >nul 2>nul
+curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "!TEMP_ZIP!" "!PROXY_DOWNLOAD_URL!" >nul 2>nul
 
 if !errorlevel! neq 0 (
     call :echoError "下载失败，请检查网络连接或代理设置"
@@ -213,6 +213,25 @@ del /f /q "%temp%\sb_update.zip" >nul 2>nul
 exit /b 1
 
 REM ============================================================================
+REM Wait for TUN network readiness after (re)start
+REM ============================================================================
+:waitTunReady
+set /a "WAIT_COUNT=0"
+:waitTunLoop
+curl -s --max-time 3 -o nul "https://cp.cloudflare.com" >nul 2>nul
+if !errorlevel! equ 0 (
+    call :echoSuccess "TUN 网络已就绪"
+    goto :eof
+)
+set /a "WAIT_COUNT+=1"
+if !WAIT_COUNT! geq 10 (
+    call :echoWarn "TUN 网络就绪检测超时 (30s)"
+    goto :eof
+)
+timeout /t 3 /nobreak >nul 2>nul
+goto :waitTunLoop
+
+REM ============================================================================
 REM Restart whichever mode was running (mixed or tun)
 REM ============================================================================
 :restartRunningMode
@@ -224,6 +243,7 @@ if /i "%~1"=="mixed" (
 )
 if /i "%~1"=="tun" (
     wscript.exe "%VBS_TUN%" >nul 2>nul
+    call :waitTunReady
     call :echoSuccess "TUN 模式已重启"
     goto :eof
 )
@@ -237,6 +257,7 @@ if !errorlevel! equ 0 (
 call :sbRunning "config-tun"
 if !errorlevel! equ 0 (
     wscript.exe "%VBS_TUN%" >nul 2>nul
+    call :waitTunReady
     call :echoSuccess "TUN 模式已重启"
     goto :eof
 )
@@ -260,7 +281,7 @@ if exist "%TUN_FILE%" copy /y "%TUN_FILE%" "%TUN_FILE%.bak" >nul 2>nul
 
 REM Download Mixed config
 call :echoInfo "正在下载 Mixed 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%MIXED_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
+curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "%MIXED_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Mixed 配置下载失败"
     if exist "%MIXED_FILE%.bak" copy /y "%MIXED_FILE%.bak" "%MIXED_FILE%" >nul 2>nul
@@ -269,7 +290,7 @@ if !errorlevel! neq 0 (
 
 REM Download Tun config
 call :echoInfo "正在下载 Tun 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --connect-timeout 15 --max-time 300 -o "%TUN_FILE%" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
+curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "%TUN_FILE%" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Tun 配置下载失败"
     if exist "%TUN_FILE%.bak" copy /y "%TUN_FILE%.bak" "%TUN_FILE%" >nul 2>nul
@@ -461,6 +482,7 @@ wscript.exe "%VBS_TUN%" >nul 2>nul
 timeout /t 3 /nobreak >nul 2>nul
 call :sbRunning "config-tun"
 if !errorlevel! equ 0 (
+    call :waitTunReady
     call :echoSuccess "已切换到 TUN 模式"
 ) else (
     call :echoError "TUN 模式启动失败，尝试恢复 Mixed..."
