@@ -281,7 +281,7 @@ if exist "%TUN_FILE%" copy /y "%TUN_FILE%" "%TUN_FILE%.bak" >nul 2>nul
 
 REM Download Mixed config
 call :echoInfo "正在下载 Mixed 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "%MIXED_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
+curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%MIXED_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Mixed 配置下载失败"
     if exist "%MIXED_FILE%.bak" copy /y "%MIXED_FILE%.bak" "%MIXED_FILE%" >nul 2>nul
@@ -290,7 +290,7 @@ if !errorlevel! neq 0 (
 
 REM Download Tun config
 call :echoInfo "正在下载 Tun 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "%TUN_FILE%" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
+curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%TUN_FILE%" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Tun 配置下载失败"
     if exist "%TUN_FILE%.bak" copy /y "%TUN_FILE%.bak" "%TUN_FILE%" >nul 2>nul
