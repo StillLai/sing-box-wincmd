@@ -57,10 +57,6 @@ set "SINGBOX_EXE=%~dp0service\core\sing-box.exe"
 set "MIXED_CONFIG_ABS=%~dp0service\core\config-mixed.json"
 set "TUN_CONFIG_ABS=%~dp0service\core\config-tun.json"
 
-REM VBS launchers
-set "VBS_MIXED=%~dp0service\start-mixed.vbs"
-set "VBS_TUN=%~dp0service\start-tun.vbs"
-
 goto :main
 
 REM ============================================================================
@@ -126,15 +122,15 @@ del /f /q "%PS_SB%" >nul 2>nul
 exit /b !SB_RET!
 
 REM ============================================================================
-REM Start sing-box directly with current user admin privileges
+REM Start sing-box via scheduled task (runs as SYSTEM)
 REM   %1 = config file absolute path
 REM ============================================================================
 :startSb
-REM Launch sing-box via appropriate VBS launcher
+REM Launch sing-box via scheduled task (runs as SYSTEM)
 if /i "%~1"=="!MIXED_CONFIG_ABS!" (
-    wscript.exe "!VBS_MIXED!"
+    schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
 ) else (
-    wscript.exe "!VBS_TUN!"
+    schtasks /run /tn "%TASK_TUN%" >nul 2>nul
 )
 goto :eof
 
@@ -259,30 +255,19 @@ REM ============================================================================
 REM Restart whichever mode was running (mixed or tun)
 REM ============================================================================
 :restartRunningMode
-REM If a mode hint is passed as %1, skip detection and restart directly
-if /i "%~1"=="mixed" (
-    call :startSb "!MIXED_CONFIG_ABS!"
-    call :echoSuccess "Mixed 模式已重启"
+REM %1 = "mixed" or "tun" (auto-detect if not provided)
+if not "%~1"=="" (
+    call :startMode "%~1"
     goto :eof
 )
-if /i "%~1"=="tun" (
-    call :startSb "!TUN_CONFIG_ABS!"
-    call :waitTunReady
-    call :echoSuccess "TUN 模式已重启"
-    goto :eof
-)
-REM No hint — detect from running processes
 call :sbRunning "config-mixed"
 if !errorlevel! equ 0 (
-    call :startSb "!MIXED_CONFIG_ABS!"
-    call :echoSuccess "Mixed 模式已重启"
+    call :startMode "mixed"
     goto :eof
 )
 call :sbRunning "config-tun"
 if !errorlevel! equ 0 (
-    call :startSb "!TUN_CONFIG_ABS!"
-    call :waitTunReady
-    call :echoSuccess "TUN 模式已重启"
+    call :startMode "tun"
     goto :eof
 )
 call :echoInfo "无运行中的实例"
@@ -343,166 +328,61 @@ if defined RUNNING_MODE (
 exit /b 0
 
 REM ============================================================================
-REM Install scheduled tasks (Mixed=auto on boot + TUN=manual only, both as SYSTEM)
+REM Ensure scheduled tasks exist (auto-create if missing)
 REM ============================================================================
-:installTask
+:ensureTasks
 if not exist "!SINGBOX_EXE!" (
     call :echoError "未找到 sing-box.exe，请先更新内核"
     exit /b 1
 )
-if not exist "!VBS_MIXED!" (
+if not exist "%~dp0service\start-mixed.vbs" (
     call :echoError "未找到 start-mixed.vbs"
     exit /b 1
 )
-if not exist "!VBS_TUN!" (
+if not exist "%~dp0service\start-tun.vbs" (
     call :echoError "未找到 start-tun.vbs"
     exit /b 1
 )
 
-REM Delete old tasks if present
-call :taskExists "%TASK_MIXED%" && (
-    call :echoInfo "删除旧的 %TASK_MIXED% 任务..."
-    schtasks /delete /tn "%TASK_MIXED%" /f >nul 2>nul
+call :taskExists "%TASK_MIXED%" || (
+    call :echoInfo "创建 %TASK_MIXED% 计划任务 (SYSTEM)..."
+    schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%~dp0service\start-mixed.vbs\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
+    schtasks /change /tn "%TASK_MIXED%" /disable >nul 2>nul
 )
-call :taskExists "%TASK_TUN%" && (
-    call :echoInfo "删除旧的 %TASK_TUN% 任务..."
-    schtasks /delete /tn "%TASK_TUN%" /f >nul 2>nul
-)
-
-REM Install Mixed task (SYSTEM, auto-start on boot)
-call :echoInfo "创建 %TASK_MIXED% 计划任务 (SYSTEM, 开机时启动)..."
-schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"!VBS_MIXED!\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
-if !errorlevel! neq 0 (
-    call :echoError "%TASK_MIXED% 任务创建失败"
-    exit /b 1
-)
-call :echoSuccess "%TASK_MIXED% 任务创建成功"
-
-REM Install TUN task (SYSTEM, manual trigger)
-call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM, 手动启动)..."
-schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"!VBS_TUN!\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
-if !errorlevel! neq 0 (
-    call :echoError "%TASK_TUN% 任务创建失败"
-    exit /b 1
-)
-schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
-call :echoSuccess "%TASK_TUN% 任务创建成功 (已禁用自动触发)"
-
-REM Stop any running sing-box first
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    call :echoInfo "停止当前运行的 sing-box..."
-    taskkill /f /im sing-box.exe >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
-)
-
-REM Start Mixed mode
-call :echoInfo "启动 sing-box (Mixed 模式)..."
-call :startSb "!MIXED_CONFIG_ABS!"
-timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 (
-    call :echoSuccess "sing-box (Mixed 模式) 已启动"
-) else (
-    call :echoWarn "sing-box 启动可能失败，请手动检查"
+call :taskExists "%TASK_TUN%" || (
+    call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM)..."
+    schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%~dp0service\start-tun.vbs\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
+    schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
 )
 exit /b 0
 
 REM ============================================================================
-REM Switch boot mode to Mixed: enable Mixed task, disable TUN task
+REM Switch boot mode: enable target task, disable the other, start target mode
+REM   %1 = "mixed" or "tun"
 REM ============================================================================
-:switchBootMixed
-call :taskExists "%TASK_MIXED%"
-if !errorlevel! neq 0 (
-    call :echoError "计划任务未安装，请先选择选项 6 安装"
-    exit /b 1
+:switchBoot
+if /i "%~1"=="tun" (
+    if not exist "service\core\config-tun.json" (
+        call :echoError "未找到 config-tun.json，请先更新订阅"
+        exit /b 1
+    )
 )
 
-call :echoInfo "切换开机自启为 Mixed 模式..."
-schtasks /change /tn "%TASK_MIXED%" /enable >nul 2>nul
-schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
+call :ensureTasks
+if !errorlevel! neq 0 exit /b 1
 
-REM Stop any running sing-box first
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    call :echoInfo "停止当前运行的 sing-box..."
-    taskkill /f /im sing-box.exe >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
-)
-
-call :echoInfo "启动 sing-box (Mixed 模式)..."
-call :startSb "!MIXED_CONFIG_ABS!"
-timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 (
-    call :echoSuccess "开机自启已切换为 Mixed 模式，sing-box 已启动"
+if /i "%~1"=="mixed" (
+    call :echoInfo "切换开机自启为 Mixed 模式..."
+    schtasks /change /tn "%TASK_MIXED%" /enable >nul 2>nul
+    schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
 ) else (
-    call :echoWarn "开机自启已切换为 Mixed 模式，但 sing-box 启动可能失败"
-)
-exit /b 0
-
-REM ============================================================================
-REM Switch boot mode to TUN: enable TUN task, disable Mixed task
-REM ============================================================================
-:switchBootTun
-if not exist "service\core\config-tun.json" (
-    call :echoError "未找到 config-tun.json，请先更新订阅"
-    exit /b 1
-)
-call :taskExists "%TASK_TUN%"
-if !errorlevel! neq 0 (
-    call :echoError "计划任务未安装，请先选择选项 6 安装"
-    exit /b 1
+    call :echoInfo "切换开机自启为 TUN 模式..."
+    schtasks /change /tn "%TASK_TUN%" /enable >nul 2>nul
+    schtasks /change /tn "%TASK_MIXED%" /disable >nul 2>nul
 )
 
-call :echoInfo "切换开机自启为 TUN 模式..."
-schtasks /change /tn "%TASK_TUN%" /enable >nul 2>nul
-schtasks /change /tn "%TASK_MIXED%" /disable >nul 2>nul
-
-REM Stop any running sing-box first
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    call :echoInfo "停止当前运行的 sing-box..."
-    taskkill /f /im sing-box.exe >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
-)
-
-call :echoInfo "启动 sing-box (TUN 模式)..."
-call :startSb "!TUN_CONFIG_ABS!"
-timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config-tun"
-if !errorlevel! equ 0 (
-    call :waitTunReady
-    call :echoSuccess "开机自启已切换为 TUN 模式，sing-box 已启动"
-) else (
-    call :echoError "TUN 模式启动失败，尝试恢复 Mixed..."
-    call :startSb "!MIXED_CONFIG_ABS!"
-)
+call :startMode "%~1"
 exit /b !errorlevel!
-
-REM ============================================================================
-REM Start Mixed mode
-REM ============================================================================
-:startMixed
-call :echoInfo "启动 sing-box (Mixed 模式)..."
-
-REM Stop any running sing-box first
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    call :echoInfo "停止当前运行的 sing-box..."
-    taskkill /f /im sing-box.exe >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
-)
-
-call :startSb "!MIXED_CONFIG_ABS!"
-timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 (
-    call :echoSuccess "sing-box (Mixed 模式) 已启动"
-) else (
-    call :echoError "启动失败"
-)
-exit /b 0
 
 REM ============================================================================
 REM Stop all sing-box processes
@@ -523,36 +403,16 @@ if !errorlevel! equ 0 (
 exit /b !errorlevel!
 
 REM ============================================================================
-REM Restart Mixed mode
+REM Start or restart sing-box in specified mode
+REM   %1 = "mixed" or "tun"
 REM ============================================================================
-:restartMixed
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    call :echoInfo "停止当前运行的 sing-box..."
-    taskkill /f /im sing-box.exe >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
+:startMode
+if /i "%~1"=="tun" (
+    if not exist "service\core\config-tun.json" (
+        call :echoError "未找到 config-tun.json，请先更新订阅"
+        exit /b 1
+    )
 )
-call :echoInfo "启动 sing-box (Mixed 模式)..."
-call :startSb "!MIXED_CONFIG_ABS!"
-timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 (
-    call :echoSuccess "sing-box (Mixed 模式) 已重启"
-) else (
-    call :echoError "启动失败"
-)
-exit /b !errorlevel!
-
-REM ============================================================================
-REM Switch to TUN mode: stop current, start TUN
-REM ============================================================================
-:switchToTun
-if not exist "service\core\config-tun.json" (
-    call :echoError "未找到 config-tun.json，请先更新订阅"
-    exit /b 1
-)
-
-call :echoInfo "切换到 TUN 模式..."
 
 REM Stop any running sing-box
 call :sbRunning "config"
@@ -562,66 +422,28 @@ if !errorlevel! equ 0 (
     timeout /t 2 /nobreak >nul 2>nul
 )
 
-REM Start TUN mode directly (same as admin CMD)
-call :echoInfo "启动 sing-box (TUN 模式)..."
-call :startSb "!TUN_CONFIG_ABS!"
-timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config-tun"
-if !errorlevel! equ 0 (
-    call :waitTunReady
-    call :echoSuccess "已切换到 TUN 模式"
-) else (
-    call :echoError "TUN 模式启动失败，尝试恢复 Mixed..."
+if /i "%~1"=="mixed" (
+    call :echoInfo "启动 sing-box (Mixed 模式)..."
     call :startSb "!MIXED_CONFIG_ABS!"
-)
-exit /b !errorlevel!
-
-REM ============================================================================
-REM Switch back to Mixed mode: stop TUN, start Mixed
-REM ============================================================================
-:switchToMixed
-call :echoInfo "切换回 Mixed 模式..."
-
-REM Stop any running sing-box
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    call :echoInfo "停止当前运行的 sing-box..."
-    taskkill /f /im sing-box.exe >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
-)
-
-call :echoInfo "启动 sing-box (Mixed 模式)..."
-call :startSb "!MIXED_CONFIG_ABS!"
-timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 (
-    call :echoSuccess "已切换回 Mixed 模式"
+    timeout /t 3 /nobreak >nul 2>nul
+    call :sbRunning "config-mixed"
+    if !errorlevel! equ 0 (
+        call :echoSuccess "sing-box (Mixed 模式) 已启动"
+    ) else (
+        call :echoError "启动失败"
+    )
 ) else (
-    call :echoError "Mixed 模式启动失败"
-)
-exit /b !errorlevel!
-
-REM ============================================================================
-REM Start or restart Mixed mode (unified: stop if running, then start)
-REM ============================================================================
-:startOrRestartMixed
-
-REM Stop any running sing-box first
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    call :echoInfo "停止当前运行的 sing-box..."
-    taskkill /f /im sing-box.exe >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
-)
-
-call :echoInfo "启动 sing-box (Mixed 模式)..."
-call :startSb "!MIXED_CONFIG_ABS!"
-timeout /t 3 /nobreak >nul 2>nul
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 (
-    call :echoSuccess "sing-box (Mixed 模式) 已启动"
-) else (
-    call :echoError "启动失败"
+    call :echoInfo "启动 sing-box (TUN 模式)..."
+    call :startSb "!TUN_CONFIG_ABS!"
+    timeout /t 3 /nobreak >nul 2>nul
+    call :sbRunning "config-tun"
+    if !errorlevel! equ 0 (
+        call :waitTunReady
+        call :echoSuccess "已切换到 TUN 模式"
+    ) else (
+        call :echoError "TUN 模式启动失败，尝试恢复 Mixed..."
+        call :startSb "!MIXED_CONFIG_ABS!"
+    )
 )
 exit /b !errorlevel!
 
@@ -746,42 +568,27 @@ if /i "%ACT%"=="kernel" (
 ) else if /i "%ACT%"=="sub" (
     call :updateSub
     set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="install" (
-    call :installTask
+) else if /i "%ACT%"=="start-mixed" (
+    call :startMode "mixed"
     set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="start" (
-    call :startOrRestartMixed
+) else if /i "%ACT%"=="start-tun" (
+    call :startMode "tun"
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="stop" (
     call :stopSingbox
     set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="restart" (
-    call :startOrRestartMixed
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="tun" (
-    call :switchToTun
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="mixed" (
-    call :startOrRestartMixed
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="start-mixed" (
-    call :startOrRestartMixed
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="start-tun" (
-    call :switchToTun
-    set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="boot-mixed" (
-    call :switchBootMixed
+    call :switchBoot "mixed"
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="boot-tun" (
-    call :switchBootTun
+    call :switchBoot "tun"
     set "SUCCESS=!errorlevel!"
 ) else if /i "%ACT%"=="uninstall" (
     call :uninstallTask
     set "SUCCESS=!errorlevel!"
 ) else (
     call :echoError "未知操作: %ACT%"
-    call :echoInfo "用法: kernel / sub / install / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall"
+    call :echoInfo "用法: kernel / sub / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall"
     set "SUCCESS=1"
 )
 
@@ -826,49 +633,45 @@ set "ML=%ESC%[96m  1 - 启动/重启 (Mixed 模式)%ESC%[0m"                    
 set "ML=%ESC%[96m  2 - 启动/重启 (TUN 模式)%ESC%[0m"                                  & call echo %%ML%%
 set "ML=%ESC%[96m  3 - 停止 sing-box%ESC%[0m"                                         & call echo %%ML%%
 echo.
-call :echoColor 90 "  ── 维护 ──"
-set "ML=%ESC%[96m  4 - 更新内核%ESC%[0m"                                              & call echo %%ML%%
-set "ML=%ESC%[96m  5 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
-echo.
 call :echoColor 90 "  ── 设置 ──"
-set "ML=%ESC%[96m  6 - 安装/重装计划任务%ESC%[0m"                                      & call echo %%ML%%
-set "ML=%ESC%[96m  7 - 开机自启切换为 Mixed 模式%ESC%[0m"                               & call echo %%ML%%
-set "ML=%ESC%[96m  8 - 开机自启切换为 TUN 模式%ESC%[0m"                                 & call echo %%ML%%
-set "ML=%ESC%[96m  9 - 关闭开机自启 (卸载所有计划任务)%ESC%[0m"                          & call echo %%ML%%
+set "ML=%ESC%[96m  4 - 设置开机自启为 Mixed 模式%ESC%[0m"                                & call echo %%ML%%
+set "ML=%ESC%[96m  5 - 设置开机自启为 TUN 模式%ESC%[0m"                                  & call echo %%ML%%
+set "ML=%ESC%[96m  6 - 关闭开机自启 (卸载所有计划任务)%ESC%[0m"                          & call echo %%ML%%
+echo.
+call :echoColor 90 "  ── 维护 ──"
+set "ML=%ESC%[96m  7 - 更新内核%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
 echo.
 set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
-choice /c 1234567890 /n /m "请选择操作: "
+choice /c 123456780 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 
 if "!CHOICE!"=="1" (
     call :runAction "start-mixed"
     goto :menu
 ) else if "!CHOICE!"=="2" (
-    call :runAction "tun"
+    call :runAction "start-tun"
     goto :menu
 ) else if "!CHOICE!"=="3" (
     call :runAction "stop"
     goto :menu
 ) else if "!CHOICE!"=="4" (
-    call :runAction "kernel"
-    goto :menu
-) else if "!CHOICE!"=="5" (
-    call :runAction "sub"
-    goto :menu
-) else if "!CHOICE!"=="6" (
-    call :runAction "install"
-    goto :menu
-) else if "!CHOICE!"=="7" (
     call :runAction "boot-mixed"
     goto :menu
-) else if "!CHOICE!"=="8" (
+) else if "!CHOICE!"=="5" (
     call :runAction "boot-tun"
     goto :menu
-) else if "!CHOICE!"=="9" (
+) else if "!CHOICE!"=="6" (
     call :runAction "uninstall"
     goto :menu
-) else if "!CHOICE!"=="10" (
+) else if "!CHOICE!"=="7" (
+    call :runAction "kernel"
+    goto :menu
+) else if "!CHOICE!"=="8" (
+    call :runAction "sub"
+    goto :menu
+) else if "!CHOICE!"=="0" (
     goto :menu
 ) else (
     call :echoError "无效选项"
