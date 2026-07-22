@@ -127,10 +127,21 @@ REM   %1 = config file absolute path
 REM ============================================================================
 :startSb
 REM Launch sing-box via scheduled task (runs as SYSTEM)
+REM Temporarily enable task if disabled, run it, then restore state
 if /i "%~1"=="!MIXED_CONFIG_ABS!" (
-    schtasks /run /tn "%TASK_MIXED%" >nul 2>nul
+    set "TARGET_TASK=%TASK_MIXED%"
 ) else (
-    schtasks /run /tn "%TASK_TUN%" >nul 2>nul
+    set "TARGET_TASK=%TASK_TUN%"
+)
+call :taskEnabled "!TARGET_TASK!"
+set "WAS_DISABLED=!errorlevel!"
+if !WAS_DISABLED! equ 1 (
+    schtasks /change /tn "!TARGET_TASK!" /enable >nul 2>nul
+)
+schtasks /run /tn "!TARGET_TASK!" >nul 2>nul
+if !WAS_DISABLED! equ 1 (
+    timeout /t 1 /nobreak >nul 2>nul
+    schtasks /change /tn "!TARGET_TASK!" /disable >nul 2>nul
 )
 goto :eof
 
@@ -410,6 +421,9 @@ if /i "%~1"=="tun" (
     )
 )
 
+call :ensureTasks
+if !errorlevel! neq 0 exit /b 1
+
 REM Stop any running sing-box
 call :sbRunning "config"
 if !errorlevel! equ 0 (
@@ -421,7 +435,7 @@ if !errorlevel! equ 0 (
 if /i "%~1"=="mixed" (
     call :echoInfo "启动 sing-box (Mixed 模式)..."
     call :startSb "!MIXED_CONFIG_ABS!"
-    timeout /t 3 /nobreak >nul 2>nul
+    timeout /t 5 /nobreak >nul 2>nul
     call :sbRunning "config-mixed"
     if !errorlevel! equ 0 (
         call :echoSuccess "sing-box (Mixed 模式) 已启动"
@@ -431,7 +445,7 @@ if /i "%~1"=="mixed" (
 ) else (
     call :echoInfo "启动 sing-box (TUN 模式)..."
     call :startSb "!TUN_CONFIG_ABS!"
-    timeout /t 3 /nobreak >nul 2>nul
+    timeout /t 5 /nobreak >nul 2>nul
     call :sbRunning "config-tun"
     if !errorlevel! equ 0 (
         call :waitTunReady
@@ -487,20 +501,37 @@ REM ============================================================================
 REM Display status
 REM ============================================================================
 :showStatus
-call :taskExists "%TASK_MIXED%"
-set "MIXED_TASK=!errorlevel!"
-call :taskExists "%TASK_TUN%"
-set "TUN_TASK=!errorlevel!"
-
-call :taskEnabled "%TASK_MIXED%"
-set "MIXED_EN=!errorlevel!"
-call :taskEnabled "%TASK_TUN%"
-set "TUN_EN=!errorlevel!"
-
-call :sbRunning "config-mixed"
-set "MIXED_RUN=!errorlevel!"
-call :sbRunning "config-tun"
-set "TUN_RUN=!errorlevel!"
+REM Get all status info in a single PowerShell call for speed
+set "STATUS_FILE=%temp%\sb_status.txt"
+set "STATUS_PS=%temp%\sb_status.ps1"
+echo $tasks = Get-ScheduledTask -TaskName 'sing-box-mixed','sing-box-tun' -ErrorAction SilentlyContinue > "%STATUS_PS%"
+echo $ht = @{}; foreach($t in $tasks){$ht[$t.TaskName]=$t.State} >> "%STATUS_PS%"
+echo $p = Get-CimInstance Win32_Process -Filter "Name='sing-box.exe'" -ErrorAction SilentlyContinue >> "%STATUS_PS%"
+echo $mixedRun=0; $tunRun=0 >> "%STATUS_PS%"
+echo if($p){foreach($pp in $p){if($pp.CommandLine -match 'config-mixed'){$mixedRun=1}; if($pp.CommandLine -match 'config-tun'){$tunRun=1}}} >> "%STATUS_PS%"
+echo $mixedTask=if($ht.ContainsKey('sing-box-mixed')){0}else{1} >> "%STATUS_PS%"
+echo $tunTask=if($ht.ContainsKey('sing-box-tun')){0}else{1} >> "%STATUS_PS%"
+echo $mixedEn=if($ht['sing-box-mixed'] -eq 'Disabled'){1}else{0} >> "%STATUS_PS%"
+echo $tunEn=if($ht['sing-box-tun'] -eq 'Disabled'){1}else{0} >> "%STATUS_PS%"
+echo "MT=$mixedTask" >> "%STATUS_PS%"
+echo "ME=$mixedEn" >> "%STATUS_PS%"
+echo "MR=$mixedRun" >> "%STATUS_PS%"
+echo "TT=$tunTask" >> "%STATUS_PS%"
+echo "TE=$tunEn" >> "%STATUS_PS%"
+echo "TR=$tunRun" >> "%STATUS_PS%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%STATUS_PS%" > "%STATUS_FILE%" 2>nul
+del /f /q "%STATUS_PS%" >nul 2>nul
+set "MIXED_TASK=1" & set "MIXED_EN=1" & set "MIXED_RUN=1"
+set "TUN_TASK=1" & set "TUN_EN=1" & set "TUN_RUN=1"
+for /f "usebackq tokens=1,* delims==" %%a in ("%STATUS_FILE%") do (
+    if "%%a"=="MT" set "MIXED_TASK=%%b"
+    if "%%a"=="ME" set "MIXED_EN=%%b"
+    if "%%a"=="MR" set "MIXED_RUN=%%b"
+    if "%%a"=="TT" set "TUN_TASK=%%b"
+    if "%%a"=="TE" set "TUN_EN=%%b"
+    if "%%a"=="TR" set "TUN_RUN=%%b"
+)
+del /f /q "%STATUS_FILE%" >nul 2>nul
 
 REM Determine boot mode
 set "BOOT_MODE=未设置"
