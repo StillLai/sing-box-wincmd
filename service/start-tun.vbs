@@ -10,11 +10,11 @@ coreDir = fso.BuildPath(scriptDir, "core")
 exePath = fso.BuildPath(coreDir, "sing-box.exe")
 configPath = fso.BuildPath(coreDir, "config-tun.json")
 
-' Wait for internet connectivity (max 10 minutes, check every 5s)
+' Wait for internet connectivity (max 10 minutes, check every 3s)
 Dim elapsed, http
 elapsed = 0
 Set http = CreateObject("WinHttp.WinHttpRequest.5.1")
-http.SetTimeouts 5000, 5000, 5000, 5000
+http.SetTimeouts 3000, 3000, 3000, 3000
 Do While elapsed < 600
     On Error Resume Next
     http.Open "GET", "http://connect.rom.miui.com/generate_204", False
@@ -24,8 +24,8 @@ Do While elapsed < 600
         Exit Do
     End If
     On Error GoTo 0
-    WScript.Sleep 5000
-    elapsed = elapsed + 5
+    WScript.Sleep 3000
+    elapsed = elapsed + 3
 Loop
 If elapsed >= 600 Then WScript.Quit 1
 
