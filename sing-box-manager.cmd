@@ -502,23 +502,23 @@ REM Display status
 REM ============================================================================
 :showStatus
 REM Get all status info in a single PowerShell call for speed
-set "STATUS_FILE=%temp%\sb_status.txt"
 set "STATUS_PS=%temp%\sb_status.ps1"
+set "STATUS_FILE=%temp%\sb_status.txt"
 echo $tasks = Get-ScheduledTask -TaskName 'sing-box-mixed','sing-box-tun' -ErrorAction SilentlyContinue > "%STATUS_PS%"
 echo $ht = @{}; foreach($t in $tasks){$ht[$t.TaskName]=$t.State} >> "%STATUS_PS%"
 echo $p = Get-CimInstance Win32_Process -Filter "Name='sing-box.exe'" -ErrorAction SilentlyContinue >> "%STATUS_PS%"
 echo $mixedRun=0; $tunRun=0 >> "%STATUS_PS%"
-echo if($p){foreach($pp in $p){if($pp.CommandLine -match 'config-mixed'){$mixedRun=1}; if($pp.CommandLine -match 'config-tun'){$tunRun=1}}} >> "%STATUS_PS%"
+echo foreach($pp in $p){if($pp.CommandLine -match 'config-mixed'){$mixedRun=1}; if($pp.CommandLine -match 'config-tun'){$tunRun=1}} >> "%STATUS_PS%"
 echo $mixedTask=if($ht.ContainsKey('sing-box-mixed')){0}else{1} >> "%STATUS_PS%"
 echo $tunTask=if($ht.ContainsKey('sing-box-tun')){0}else{1} >> "%STATUS_PS%"
 echo $mixedEn=if($ht['sing-box-mixed'] -eq 'Disabled'){1}else{0} >> "%STATUS_PS%"
 echo $tunEn=if($ht['sing-box-tun'] -eq 'Disabled'){1}else{0} >> "%STATUS_PS%"
-echo "MT=$mixedTask" >> "%STATUS_PS%"
-echo "ME=$mixedEn" >> "%STATUS_PS%"
-echo "MR=$mixedRun" >> "%STATUS_PS%"
-echo "TT=$tunTask" >> "%STATUS_PS%"
-echo "TE=$tunEn" >> "%STATUS_PS%"
-echo "TR=$tunRun" >> "%STATUS_PS%"
+echo Write-Output "MT=$mixedTask" >> "%STATUS_PS%"
+echo Write-Output "ME=$mixedEn" >> "%STATUS_PS%"
+echo Write-Output "MR=$mixedRun" >> "%STATUS_PS%"
+echo Write-Output "TT=$tunTask" >> "%STATUS_PS%"
+echo Write-Output "TE=$tunEn" >> "%STATUS_PS%"
+echo Write-Output "TR=$tunRun" >> "%STATUS_PS%"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%STATUS_PS%" > "%STATUS_FILE%" 2>nul
 del /f /q "%STATUS_PS%" >nul 2>nul
 set "MIXED_TASK=1" & set "MIXED_EN=1" & set "MIXED_RUN=1"
