@@ -335,23 +335,19 @@ if not exist "!SINGBOX_EXE!" (
     call :echoError "未找到 sing-box.exe，请先更新内核"
     exit /b 1
 )
-if not exist "%~dp0service\start-mixed.vbs" (
-    call :echoError "未找到 start-mixed.vbs"
-    exit /b 1
-)
-if not exist "%~dp0service\start-tun.vbs" (
-    call :echoError "未找到 start-tun.vbs"
+if not exist "%~dp0service\start-singbox.vbs" (
+    call :echoError "未找到 start-singbox.vbs"
     exit /b 1
 )
 
 call :taskExists "%TASK_MIXED%" || (
     call :echoInfo "创建 %TASK_MIXED% 计划任务 (SYSTEM)..."
-    schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%~dp0service\start-mixed.vbs\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
+    schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" mixed" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
     schtasks /change /tn "%TASK_MIXED%" /disable >nul 2>nul
 )
 call :taskExists "%TASK_TUN%" || (
     call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM)..."
-    schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%~dp0service\start-tun.vbs\"" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
+    schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" tun" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
     schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
 )
 exit /b 0

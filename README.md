@@ -84,8 +84,7 @@ sing-box-wincmd/
 ├── LICENSE
 ├── README.md
 └── service/
-    ├── start-mixed.vbs       # Mixed 模式静默启动器
-    ├── start-tun.vbs         # TUN 模式静默启动器
+    ├── start-singbox.vbs     # 静默启动器（通过参数 mixed/tun 切换模式）
     └── core/                 # 运行时目录（自动创建，不提交）
         ├── sing-box.exe      # sing-box 二进制（自动下载）
         ├── config-mixed.json # Mixed 配置（自动拉取）

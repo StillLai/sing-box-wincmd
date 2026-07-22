@@ -1,5 +1,15 @@
-' Silent launcher for sing-box TUN mode
+' Silent launcher for sing-box
 ' Used by scheduled task to avoid visible console window
+' Usage: start-singbox.vbs <mixed|tun>
+
+Dim mode
+If WScript.Arguments.Count < 1 Then
+    WScript.Quit 1
+End If
+mode = LCase(WScript.Arguments(0))
+If mode <> "mixed" And mode <> "tun" Then
+    WScript.Quit 1
+End If
 
 Set WshShell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -8,7 +18,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
 coreDir = fso.BuildPath(scriptDir, "core")
 exePath = fso.BuildPath(coreDir, "sing-box.exe")
-configPath = fso.BuildPath(coreDir, "config-tun.json")
+configPath = fso.BuildPath(coreDir, "config-" & mode & ".json")
 
 ' Wait for internet connectivity (max 10 minutes, check every 3s)
 Dim elapsed, http
@@ -33,7 +43,7 @@ If elapsed >= 600 Then WScript.Quit 1
 Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
 Set colProcesses = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE Name='sing-box.exe'")
 For Each objProcess in colProcesses
-    If InStr(LCase(objProcess.CommandLine), "config-tun") > 0 Then
+    If InStr(LCase(objProcess.CommandLine), "config-" & mode) > 0 Then
         WScript.Quit 0
     End If
 Next
