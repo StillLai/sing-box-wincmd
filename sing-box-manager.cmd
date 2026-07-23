@@ -501,84 +501,46 @@ REM ============================================================================
 REM Display status
 REM ============================================================================
 :showStatus
-REM Get all status info in a single PowerShell call for speed
-set "STATUS_PS=%temp%\sb_status.ps1"
-set "STATUS_FILE=%temp%\sb_status.txt"
-echo $tasks = Get-ScheduledTask -TaskName 'sing-box-mixed','sing-box-tun' -ErrorAction SilentlyContinue > "%STATUS_PS%"
-echo $ht = @{}; foreach($t in $tasks){$ht[$t.TaskName]=$t.State} >> "%STATUS_PS%"
-echo $p = Get-CimInstance Win32_Process -Filter "Name='sing-box.exe'" -ErrorAction SilentlyContinue >> "%STATUS_PS%"
-echo $mixedRun=0; $tunRun=0 >> "%STATUS_PS%"
-echo foreach($pp in $p){if($pp.CommandLine -match 'config-mixed'){$mixedRun=1}; if($pp.CommandLine -match 'config-tun'){$tunRun=1}} >> "%STATUS_PS%"
-echo $mixedTask=if($ht.ContainsKey('sing-box-mixed')){0}else{1} >> "%STATUS_PS%"
-echo $tunTask=if($ht.ContainsKey('sing-box-tun')){0}else{1} >> "%STATUS_PS%"
-echo $mixedEn=if($ht['sing-box-mixed'] -eq 'Disabled'){1}else{0} >> "%STATUS_PS%"
-echo $tunEn=if($ht['sing-box-tun'] -eq 'Disabled'){1}else{0} >> "%STATUS_PS%"
-echo Write-Output "MT=$mixedTask" >> "%STATUS_PS%"
-echo Write-Output "ME=$mixedEn" >> "%STATUS_PS%"
-echo Write-Output "MR=$mixedRun" >> "%STATUS_PS%"
-echo Write-Output "TT=$tunTask" >> "%STATUS_PS%"
-echo Write-Output "TE=$tunEn" >> "%STATUS_PS%"
-echo Write-Output "TR=$tunRun" >> "%STATUS_PS%"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%STATUS_PS%" > "%STATUS_FILE%" 2>nul
-del /f /q "%STATUS_PS%" >nul 2>nul
-set "MIXED_TASK=1" & set "MIXED_EN=1" & set "MIXED_RUN=1"
-set "TUN_TASK=1" & set "TUN_EN=1" & set "TUN_RUN=1"
-for /f "usebackq tokens=1,* delims==" %%a in ("%STATUS_FILE%") do (
-    if "%%a"=="MT" set "MIXED_TASK=%%b"
-    if "%%a"=="ME" set "MIXED_EN=%%b"
-    if "%%a"=="MR" set "MIXED_RUN=%%b"
-    if "%%a"=="TT" set "TUN_TASK=%%b"
-    if "%%a"=="TE" set "TUN_EN=%%b"
-    if "%%a"=="TR" set "TUN_RUN=%%b"
-)
-del /f /q "%STATUS_FILE%" >nul 2>nul
-
 REM Determine boot mode
-set "BOOT_MODE=未设置"
-if !MIXED_TASK! equ 0 if !MIXED_EN! equ 0 set "BOOT_MODE=Mixed"
-if !TUN_TASK! equ 0 if !TUN_EN! equ 0 set "BOOT_MODE=TUN"
-if "!BOOT_MODE!"=="未设置" (
-    call :echoColor 90 "开机自启:   未设置"
+set "BOOT_MODE=未注册"
+call :taskExists "!TASK_MIXED!"
+set "MIXED_EXISTS=!errorlevel!"
+call :taskExists "!TASK_TUN!"
+set "TUN_EXISTS=!errorlevel!"
+
+REM If either task exists, default to 未设置 (will be overridden if one is enabled)
+if !MIXED_EXISTS! equ 0 set "BOOT_MODE=未设置"
+if !TUN_EXISTS! equ 0 set "BOOT_MODE=未设置"
+if !MIXED_EXISTS! equ 0 (
+    call :taskEnabled "!TASK_MIXED!"
+    if !errorlevel! equ 0 set "BOOT_MODE=Mixed"
+)
+if !TUN_EXISTS! equ 0 (
+    call :taskEnabled "!TASK_TUN!"
+    if !errorlevel! equ 0 set "BOOT_MODE=TUN"
+)
+
+if "!BOOT_MODE!"=="未注册" (
+    call :echoColor 90 "开机自启:   未注册"
+) else if "!BOOT_MODE!"=="未设置" (
+    call :echoColor 93 "开机自启:   未设置"
 ) else if "!BOOT_MODE!"=="Mixed" (
     call :echoColor 96 "开机自启:   Mixed 模式"
 ) else (
     call :echoColor 96 "开机自启:   TUN 模式"
 )
 
-if !MIXED_TASK! equ 0 (
-    if !MIXED_EN! equ 0 (
-        if !MIXED_RUN! equ 0 (
-            call :echoColor 92 "Mixed 模式: 运行中 [开机自启]"
-        ) else (
-            call :echoColor 93 "Mixed 模式: 已停止 [开机自启]"
-        )
-    ) else (
-        if !MIXED_RUN! equ 0 (
-            call :echoColor 92 "Mixed 模式: 运行中 [已注册]"
-        ) else (
-            call :echoColor 93 "Mixed 模式: 已停止 [已注册]"
-        )
-    )
+REM Determine running mode
+call :sbRunning "config-mixed"
+if !errorlevel! equ 0 (
+    call :echoColor 92 "当前运行:   Mixed 模式"
 ) else (
-    call :echoColor 90 "Mixed 模式: 未注册"
-)
-
-if !TUN_TASK! equ 0 (
-    if !TUN_EN! equ 0 (
-        if !TUN_RUN! equ 0 (
-            call :echoColor 92 "TUN 模式:   运行中 [开机自启]"
-        ) else (
-            call :echoColor 93 "TUN 模式:   已停止 [开机自启]"
-        )
+    call :sbRunning "config-tun"
+    if !errorlevel! equ 0 (
+        call :echoColor 92 "当前运行:   TUN 模式"
     ) else (
-        if !TUN_RUN! equ 0 (
-            call :echoColor 92 "TUN 模式:   运行中 [已注册]"
-        ) else (
-            call :echoColor 93 "TUN 模式:   已停止 [已注册]"
-        )
+        call :echoColor 93 "当前运行:   已停止"
     )
-) else (
-    call :echoColor 90 "TUN 模式:   未注册"
 )
 goto :eof
 
