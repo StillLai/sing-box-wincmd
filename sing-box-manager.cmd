@@ -501,6 +501,16 @@ REM ============================================================================
 REM Display status
 REM ============================================================================
 :showStatus
+REM Determine sing-box version
+set "SB_VERSION=未安装"
+if exist "!SINGBOX_EXE!" (
+    for /f "tokens=3" %%v in ('"!SINGBOX_EXE!" version 2^>nul') do (
+        if "!SB_VERSION!"=="未安装" set "SB_VERSION=%%v"
+    )
+    if "!SB_VERSION!"=="" set "SB_VERSION=未知"
+)
+call :echoColor 96 "sing-box:   !SB_VERSION!"
+
 REM Determine boot mode
 set "BOOT_MODE=未注册"
 call :taskExists "!TASK_MIXED!"
