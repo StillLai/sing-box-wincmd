@@ -21,19 +21,16 @@ exePath = fso.BuildPath(coreDir, "sing-box.exe")
 configPath = fso.BuildPath(coreDir, "config-" & mode & ".json")
 
 ' Wait for internet connectivity (max 10 minutes, check every 3s)
-Dim elapsed, http
+Dim elapsed, execObj
 elapsed = 0
-Set http = CreateObject("WinHttp.WinHttpRequest.5.1")
-http.SetTimeouts 3000, 3000, 3000, 3000
 Do While elapsed < 600
-    On Error Resume Next
-    http.Open "GET", "http://connect.rom.miui.com/generate_204", False
-    http.Send
-    If Err.Number = 0 And http.Status = 204 Then
-        On Error GoTo 0
+    Set execObj = WshShell.Exec("cmd /c curl -s --connect-timeout 3 --max-time 3 -o nul http://connect.rom.miui.com/generate_204")
+    Do While execObj.Status = 0
+        WScript.Sleep 100
+    Loop
+    If execObj.ExitCode = 0 Then
         Exit Do
     End If
-    On Error GoTo 0
     WScript.Sleep 3000
     elapsed = elapsed + 3
 Loop
