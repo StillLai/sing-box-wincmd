@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 chcp 65001 >nul 2>nul
 
 REM Check admin privilege, auto-elevate if needed
@@ -218,7 +218,7 @@ if !errorlevel! neq 0 (
     goto :restoreKernel
 )
 
-call :echoSuccess "内核已更新"
+call :echoSuccess "核心已更新"
 
 if defined RUNNING_MODE (
     call :echoInfo "正在重新启动 sing-box..."
@@ -233,9 +233,9 @@ call :echoWarn "正在从备份恢复..."
 if exist "%SINGBOX_EXE%.bak" (
     copy /y "%SINGBOX_EXE%.bak" "%SINGBOX_EXE%" >nul 2>nul
     if !errorlevel! equ 0 (
-        call :echoInfo "已恢复旧内核"
+        call :echoInfo "已恢复旧核心"
     ) else (
-        call :echoError "恢复旧内核失败"
+        call :echoError "恢复旧核心失败"
     )
 ) else (
     call :echoWarn "未找到备份文件，无法恢复"
@@ -343,7 +343,7 @@ REM Ensure scheduled tasks exist (auto-create if missing)
 REM ============================================================================
 :ensureTasks
 if not exist "!SINGBOX_EXE!" (
-    call :echoError "未找到 sing-box.exe，请先更新内核"
+    call :echoError "未找到 sing-box.exe，请先更新核心"
     exit /b 1
 )
 if not exist "%~dp0service\start-singbox.vbs" (
@@ -638,7 +638,7 @@ set "ML=%ESC%[96m  5 - 设置开机自启为 TUN 模式%ESC%[0m"                
 set "ML=%ESC%[96m  6 - 关闭开机自启 (卸载所有计划任务)%ESC%[0m"                          & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 维护 ──"
-set "ML=%ESC%[96m  7 - 更新内核%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  7 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
 set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
 echo.
 set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
