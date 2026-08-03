@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul 2>nul
 
 REM Check admin privilege, auto-elevate if needed
