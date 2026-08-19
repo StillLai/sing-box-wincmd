@@ -48,6 +48,11 @@ if not defined TUN_SUB_URL (
     exit /b 1
 )
 
+REM Ensure PROXY_PREFIX ends with / if set
+if defined PROXY_PREFIX (
+    if not "!PROXY_PREFIX:~-1!"=="/" set "PROXY_PREFIX=!PROXY_PREFIX!/"
+)
+
 REM Scheduled task names
 set "TASK_MIXED=sing-box-mixed"
 set "TASK_TUN=sing-box-tun"
@@ -114,42 +119,31 @@ REM   %1 = config keyword (e.g. "config-mixed" or "config-tun")
 REM   exit /b 0 if running, 1 otherwise
 REM ============================================================================
 :sbRunning
+set "SB_RUNNING=0"
 set "PS_SB=%temp%\sb_running.ps1"
-echo $p = Get-CimInstance Win32_Process -Filter "Name='sing-box.exe'" 2^>$null; if ($p -and ($p.CommandLine -match '%~1')) { exit 0 } else { exit 1 } > "%PS_SB%"
-powershell -ExecutionPolicy Bypass -File "%PS_SB%" >nul 2>nul
-set "SB_RET=!errorlevel!"
+echo $p = Get-CimInstance Win32_Process -Filter "Name='sing-box.exe'" 2^>$null; if ($p ^| Where-Object { $_.CommandLine -match '%~1' }) { Write-Output 0 } else { Write-Output 1 } > "%PS_SB%"
+for /f %%r in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SB%" 2^>nul') do set "SB_RUNNING=%%r"
 del /f /q "%PS_SB%" >nul 2>nul
-exit /b !SB_RET!
+exit /b !SB_RUNNING!
 
 REM ============================================================================
-REM Start sing-box via scheduled task (runs as SYSTEM)
+REM Start sing-box (shares the same VBS launcher as boot-time startup)
 REM   %1 = config file absolute path
+REM   Uses VBS with --direct flag to skip network wait
 REM ============================================================================
 :startSb
-REM Launch sing-box via scheduled task (runs as SYSTEM)
-REM Temporarily enable task if disabled, run it, then restore state
 if /i "%~1"=="!MIXED_CONFIG_ABS!" (
-    set "TARGET_TASK=%TASK_MIXED%"
+    set "SB_MODE=mixed"
 ) else (
-    set "TARGET_TASK=%TASK_TUN%"
+    set "SB_MODE=tun"
 )
-call :taskEnabled "!TARGET_TASK!"
-set "WAS_DISABLED=!errorlevel!"
-if !WAS_DISABLED! equ 1 (
-    schtasks /change /tn "!TARGET_TASK!" /enable >nul 2>nul
-)
-schtasks /run /tn "!TARGET_TASK!" >nul 2>nul
-if !WAS_DISABLED! equ 1 (
-    timeout /t 1 /nobreak >nul 2>nul
-    schtasks /change /tn "!TARGET_TASK!" /disable >nul 2>nul
-)
+start "" /b wscript.exe "%~dp0service\start-singbox.vbs" !SB_MODE! --direct
 goto :eof
 
 REM ============================================================================
 REM Update kernel
 REM ============================================================================
 :updateKernel
-set "SINGBOX_EXE=service\core\sing-box.exe"
 set "API_URL=https://api.github.com/repos/reF1nd/sing-box-releases/releases"
 set "GITHUB_BASE=https://github.com/reF1nd/sing-box-releases/releases/download"
 call :echoInfo "正在检查最新版本..."
@@ -171,9 +165,26 @@ if !errorlevel! neq 0 (
 )
 call :echoSuccess "最新版本: !VERSION!"
 
-if exist "%SINGBOX_EXE%" copy /y "%SINGBOX_EXE%" "%SINGBOX_EXE%.bak" >nul 2>nul
-
+REM Check if already at latest version
+set "CURRENT_VERSION="
+if exist "!SINGBOX_EXE!" (
+    for /f "tokens=3" %%v in ('"!SINGBOX_EXE!" version 2^>nul') do (
+        if not defined CURRENT_VERSION set "CURRENT_VERSION=%%v"
+    )
+)
 set "VERSION_NUM=!VERSION:~1!"
+if defined CURRENT_VERSION (
+    if "!CURRENT_VERSION!"=="!VERSION_NUM!" (
+        call :echoSuccess "当前已是最新版本 (!VERSION!)，无需更新"
+        exit /b 0
+    )
+    call :echoInfo "当前版本: !CURRENT_VERSION!，准备更新..."
+) else (
+    call :echoInfo "未检测到已安装的核心，将全新安装..."
+)
+
+if exist "!SINGBOX_EXE!" copy /y "!SINGBOX_EXE!" "!SINGBOX_EXE!.bak" >nul 2>nul
+
 set "TEMP_ZIP=%temp%\sb_update.zip"
 
 REM Build download URL: prepend PROXY_PREFIX for the actual file download
@@ -210,10 +221,11 @@ if defined RUNNING_MODE (
 
 REM Extract sing-box.exe directly from ZIP to final location
 call :echoInfo "正在解压..."
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; $z = [IO.Compression.ZipFile]::OpenRead('!TEMP_ZIP!'); $e = $z.Entries | Where-Object { $_.Name -eq 'sing-box.exe' }; if ($e) { $s = $e.Open(); $f = [IO.File]::Create('%SINGBOX_EXE%'); $s.CopyTo($f); $f.Dispose(); $s.Dispose() }; $z.Dispose()" >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Add-Type -AssemblyName System.IO.Compression.FileSystem; $z = [IO.Compression.ZipFile]::OpenRead('!TEMP_ZIP!'); $e = $z.Entries | Where-Object { $_.Name -eq 'sing-box.exe' }; if ($e) { $s = $e.Open(); $f = [IO.File]::Create('!SINGBOX_EXE!'); $s.CopyTo($f); $f.Dispose(); $s.Dispose() } else { exit 1 }; $z.Dispose() } catch { exit 1 }" >nul 2>nul
+set "EXTRACT_OK=!errorlevel!"
 del /f /q "!TEMP_ZIP!" >nul 2>nul
 
-if !errorlevel! neq 0 (
+if !EXTRACT_OK! neq 0 (
     call :echoError "解压失败"
     goto :restoreKernel
 )
@@ -222,16 +234,19 @@ call :echoSuccess "核心已更新"
 
 if defined RUNNING_MODE (
     call :echoInfo "正在重新启动 sing-box..."
-    call :restartRunningMode !RUNNING_MODE!
+    call :restartBootMode
+    if !errorlevel! neq 0 (
+        call :echoWarn "核心已更新，但重启失败，请手动启动"
+    )
 )
 
-del /f /q "%SINGBOX_EXE%.bak" >nul 2>nul
+del /f /q "!SINGBOX_EXE!.bak" >nul 2>nul
 exit /b 0
 
 :restoreKernel
 call :echoWarn "正在从备份恢复..."
-if exist "%SINGBOX_EXE%.bak" (
-    copy /y "%SINGBOX_EXE%.bak" "%SINGBOX_EXE%" >nul 2>nul
+if exist "!SINGBOX_EXE!.bak" (
+    copy /y "!SINGBOX_EXE!.bak" "!SINGBOX_EXE!" >nul 2>nul
     if !errorlevel! equ 0 (
         call :echoInfo "已恢复旧核心"
     ) else (
@@ -263,25 +278,24 @@ timeout /t 3 /nobreak >nul 2>nul
 goto :waitTunLoop
 
 REM ============================================================================
-REM Restart whichever mode was running (mixed or tun)
+REM Detect boot mode from scheduled task state
+REM   Output: sets global variable BOOT_MODE_VAR to "mixed" or "tun"
+REM   Default: "mixed" (when no TUN task is enabled)
 REM ============================================================================
-:restartRunningMode
-REM %1 = "mixed" or "tun" (auto-detect if not provided)
-if not "%~1"=="" (
-    call :startMode "%~1"
-    goto :eof
-)
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 (
-    call :startMode "mixed"
-    goto :eof
-)
-call :sbRunning "config-tun"
-if !errorlevel! equ 0 (
-    call :startMode "tun"
-    goto :eof
-)
-call :echoInfo "无运行中的实例"
+:detectBootMode
+set "BOOT_MODE_VAR=mixed"
+call :taskEnabled "!TASK_TUN!"
+if !errorlevel! equ 0 set "BOOT_MODE_VAR=tun"
+goto :eof
+
+REM ============================================================================
+REM Restart in the configured boot mode
+REM   Detects boot task state and starts accordingly
+REM ============================================================================
+:restartBootMode
+call :detectBootMode
+call :echoInfo "根据开机自启设置，以 !BOOT_MODE_VAR! 模式重启..."
+call :startMode "!BOOT_MODE_VAR!"
 goto :eof
 
 REM ============================================================================
@@ -299,25 +313,24 @@ REM Backup existing configs before downloading
 if exist "%MIXED_FILE%" copy /y "%MIXED_FILE%" "%MIXED_FILE%.bak" >nul 2>nul
 if exist "%TUN_FILE%" copy /y "%TUN_FILE%" "%TUN_FILE%.bak" >nul 2>nul
 
-REM Download Mixed config
+REM Download to temp files first (atomic: all-or-nothing)
 call :echoInfo "正在下载 Mixed 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%MIXED_FILE%" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
+curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%MIXED_FILE%.tmp" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Mixed 配置下载失败"
-    if exist "%MIXED_FILE%.bak" copy /y "%MIXED_FILE%.bak" "%MIXED_FILE%" >nul 2>nul
-    exit /b 1
+    goto :subRestoreAndExit
 )
 
-REM Download Tun config
 call :echoInfo "正在下载 Tun 配置 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%TUN_FILE%" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
+curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%TUN_FILE%.tmp" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Tun 配置下载失败"
-    if exist "%TUN_FILE%.bak" copy /y "%TUN_FILE%.bak" "%TUN_FILE%" >nul 2>nul
-    exit /b 1
+    goto :subRestoreAndExit
 )
 
-REM All downloads succeeded — clean up backups
+REM All downloads succeeded — atomically replace configs
+move /y "%MIXED_FILE%.tmp" "%MIXED_FILE%" >nul 2>nul
+move /y "%TUN_FILE%.tmp" "%TUN_FILE%" >nul 2>nul
 del /f /q "%MIXED_FILE%.bak" "%TUN_FILE%.bak" >nul 2>nul
 call :echoSuccess "订阅配置已更新"
 
@@ -332,11 +345,21 @@ if defined RUNNING_MODE (
     call :echoInfo "检测到 sing-box 正在运行 (%RUNNING_MODE%)，正在重启以应用新配置..."
     taskkill /f /im sing-box.exe >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
-    call :restartRunningMode !RUNNING_MODE!
+    call :restartBootMode
+    if !errorlevel! neq 0 (
+        call :echoWarn "订阅已更新，但重启失败，请手动启动"
+    )
 ) else (
     call :echoInfo "无运行中的实例，新配置将在下次启动时生效"
 )
 exit /b 0
+
+:subRestoreAndExit
+del /f /q "%MIXED_FILE%.tmp" "%TUN_FILE%.tmp" >nul 2>nul
+if exist "%MIXED_FILE%.bak" copy /y "%MIXED_FILE%.bak" "%MIXED_FILE%" >nul 2>nul
+if exist "%TUN_FILE%.bak" copy /y "%TUN_FILE%.bak" "%TUN_FILE%" >nul 2>nul
+del /f /q "%MIXED_FILE%.bak" "%TUN_FILE%.bak" >nul 2>nul
+exit /b 1
 
 REM ============================================================================
 REM Ensure scheduled tasks exist (auto-create if missing)
@@ -373,6 +396,11 @@ if /i "%~1"=="tun" (
         call :echoError "未找到 config-tun.json，请先更新订阅"
         exit /b 1
     )
+) else (
+    if not exist "service\core\config-mixed.json" (
+        call :echoError "未找到 config-mixed.json，请先更新订阅"
+        exit /b 1
+    )
 )
 
 call :ensureTasks
@@ -402,12 +430,13 @@ if !errorlevel! neq 0 (
 )
 call :echoInfo "停止 sing-box..."
 taskkill /f /im sing-box.exe >nul 2>nul
-if !errorlevel! equ 0 (
+set "KILL_OK=!errorlevel!"
+if !KILL_OK! equ 0 (
     call :echoSuccess "sing-box 已停止"
 ) else (
     call :echoError "停止失败"
 )
-exit /b !errorlevel!
+exit /b !KILL_OK!
 
 REM ============================================================================
 REM Start or restart sing-box in specified mode
@@ -417,6 +446,11 @@ REM ============================================================================
 if /i "%~1"=="tun" (
     if not exist "service\core\config-tun.json" (
         call :echoError "未找到 config-tun.json，请先更新订阅"
+        exit /b 1
+    )
+) else (
+    if not exist "service\core\config-mixed.json" (
+        call :echoError "未找到 config-mixed.json，请先更新订阅"
         exit /b 1
     )
 )
@@ -441,6 +475,7 @@ if /i "%~1"=="mixed" (
         call :echoSuccess "sing-box (Mixed 模式) 已启动"
     ) else (
         call :echoError "启动失败"
+        exit /b 1
     )
 ) else (
     call :echoInfo "启动 sing-box (TUN 模式)..."
@@ -451,8 +486,21 @@ if /i "%~1"=="mixed" (
         call :waitTunReady
         call :echoSuccess "已切换到 TUN 模式"
     ) else (
-        call :echoError "TUN 模式启动失败，尝试恢复 Mixed..."
-        call :startSb "!MIXED_CONFIG_ABS!"
+        call :echoError "TUN 模式启动失败"
+        if exist "!MIXED_CONFIG_ABS!" (
+            call :echoInfo "尝试恢复 Mixed 模式..."
+            call :startSb "!MIXED_CONFIG_ABS!"
+            timeout /t 5 /nobreak >nul 2>nul
+            call :sbRunning "config-mixed"
+            if !errorlevel! equ 0 (
+                call :echoWarn "已回退到 Mixed 模式"
+            ) else (
+                call :echoError "Mixed 模式回退也失败"
+            )
+        ) else (
+            call :echoWarn "Mixed 配置也不存在，无法自动恢复"
+        )
+        exit /b 1
     )
 )
 exit /b !errorlevel!
@@ -603,7 +651,7 @@ if !SUCCESS!==0 (
 )
 echo.
 pause >nul
-goto :eof
+exit /b !SUCCESS!
 
 REM ============================================================================
 REM Main

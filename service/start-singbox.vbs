@@ -1,14 +1,22 @@
 ' Silent launcher for sing-box
-' Used by scheduled task to avoid visible console window
-' Usage: start-singbox.vbs <mixed|tun>
+' Used by scheduled task and manual launch to share the same logic
+' Usage: start-singbox.vbs <mixed|tun> [--direct]
+'   --direct: skip network wait (for manual launch from menu)
 
-Dim mode
+Dim mode, direct
+direct = False
+
 If WScript.Arguments.Count < 1 Then
     WScript.Quit 1
 End If
 mode = LCase(WScript.Arguments(0))
 If mode <> "mixed" And mode <> "tun" Then
     WScript.Quit 1
+End If
+If WScript.Arguments.Count > 1 Then
+    If LCase(WScript.Arguments(1)) = "--direct" Then
+        direct = True
+    End If
 End If
 
 Set WshShell = CreateObject("WScript.Shell")
@@ -20,21 +28,28 @@ coreDir = fso.BuildPath(scriptDir, "core")
 exePath = fso.BuildPath(coreDir, "sing-box.exe")
 configPath = fso.BuildPath(coreDir, "config-" & mode & ".json")
 
+' Validate required files exist
+If Not fso.FileExists(exePath) Then WScript.Quit 1
+If Not fso.FileExists(configPath) Then WScript.Quit 1
+
 ' Wait for internet connectivity (max 10 minutes, check every 3s)
-Dim elapsed, execObj
-elapsed = 0
-Do While elapsed < 600
-    Set execObj = WshShell.Exec("cmd /c curl -s --connect-timeout 3 --max-time 3 -o nul http://connect.rom.miui.com/generate_204")
-    Do While execObj.Status = 0
-        WScript.Sleep 100
+' Skipped when launched with --direct (system is already booted)
+If Not direct Then
+    Dim elapsed, execObj
+    elapsed = 0
+    Do While elapsed < 600
+        Set execObj = WshShell.Exec("cmd /c curl -s --connect-timeout 3 --max-time 3 -o nul http://connect.rom.miui.com/generate_204")
+        Do While execObj.Status = 0
+            WScript.Sleep 100
+        Loop
+        If execObj.ExitCode = 0 Then
+            Exit Do
+        End If
+        WScript.Sleep 3000
+        elapsed = elapsed + 3
     Loop
-    If execObj.ExitCode = 0 Then
-        Exit Do
-    End If
-    WScript.Sleep 3000
-    elapsed = elapsed + 3
-Loop
-If elapsed >= 600 Then WScript.Quit 1
+    If elapsed >= 600 Then WScript.Quit 1
+End If
 
 ' Check if sing-box.exe is already running with this config
 Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")

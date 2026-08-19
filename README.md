@@ -12,7 +12,7 @@ Windows 计划任务管理器，用于 **sing-box 裸核运行**。
 
 - **内核管理**：一键更新 sing-box 内核到最新版本
 - **订阅更新**：从 Gist 拉取最新配置文件（Mixed / TUN 两种模式）
-- **计划任务**：通过 Windows 计划任务实现开机自启（Mixed 模式登录自启，TUN 模式手动启动）
+- **计划任务**：通过 Windows 计划任务实现开机自启（Mixed / TUN 模式任选其一）
 - **模式切换**：Mixed 模式（HTTP/SOCKS 代理）与 TUN 模式（全局透明代理）一键切换
 - **代理加速**：内置 GitHub 代理前缀，国内网络环境友好
 
@@ -58,20 +58,19 @@ PROXY_PREFIX=https://gh-proxy.org/
 首次使用依次选择：
 1. **更新内核** — 下载最新 sing-box 二进制
 2. **更新订阅** — 拉取配置文件
-3. **安装计划任务** — 注册 Windows 计划任务并自动启动
+3. **设置开机自启** — 选择选项 4（Mixed）或 5（TUN），计划任务会自动创建并启动
 
 之后可通过菜单或命令行参数操作：
 
 ```cmd
-sing-box-manager.cmd kernel      # 更新内核
-sing-box-manager.cmd sub         # 更新订阅
-sing-box-manager.cmd install     # 安装计划任务
-sing-box-manager.cmd start       # 启动 Mixed 模式
-sing-box-manager.cmd stop        # 停止
-sing-box-manager.cmd restart     # 重启
-sing-box-manager.cmd tun         # 切换到 TUN 模式
-sing-box-manager.cmd mixed       # 切换回 Mixed 模式
-sing-box-manager.cmd uninstall   # 卸载计划任务
+sing-box-manager.cmd kernel        # 更新内核
+sing-box-manager.cmd sub           # 更新订阅
+sing-box-manager.cmd start-mixed   # 启动 Mixed 模式
+sing-box-manager.cmd start-tun     # 启动 TUN 模式
+sing-box-manager.cmd stop          # 停止
+sing-box-manager.cmd boot-mixed    # 设置开机自启为 Mixed 模式
+sing-box-manager.cmd boot-tun      # 设置开机自启为 TUN 模式
+sing-box-manager.cmd uninstall     # 卸载计划任务
 ```
 
 ## 目录结构
