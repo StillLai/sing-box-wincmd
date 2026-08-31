@@ -191,8 +191,8 @@ REM Build download URL: prepend PROXY_PREFIX for the actual file download
 set "RAW_DOWNLOAD_URL=%GITHUB_BASE%/!VERSION!/sing-box-!VERSION_NUM!-windows-amd64v3.zip"
 set "PROXY_DOWNLOAD_URL=%PROXY_PREFIX%%RAW_DOWNLOAD_URL%"
 
-call :echoInfo "正在下载 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "!TEMP_ZIP!" "!PROXY_DOWNLOAD_URL!" >nul
+call :echoInfo "正在下载 (代理: !PROXY_PREFIX!)..."
+curl -f -L -C - --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "!TEMP_ZIP!" "!PROXY_DOWNLOAD_URL!" >nul
 
 if !errorlevel! neq 0 (
     call :echoError "下载失败，请检查网络连接或代理设置"
@@ -314,14 +314,14 @@ if exist "%MIXED_FILE%" copy /y "%MIXED_FILE%" "%MIXED_FILE%.bak" >nul 2>nul
 if exist "%TUN_FILE%" copy /y "%TUN_FILE%" "%TUN_FILE%.bak" >nul 2>nul
 
 REM Download to temp files first (atomic: all-or-nothing)
-call :echoInfo "正在下载 Mixed 配置 (代理: %PROXY_PREFIX%)..."
+call :echoInfo "正在下载 Mixed 配置 (代理: !PROXY_PREFIX!)..."
 curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%MIXED_FILE%.tmp" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Mixed 配置下载失败"
     goto :subRestoreAndExit
 )
 
-call :echoInfo "正在下载 Tun 配置 (代理: %PROXY_PREFIX%)..."
+call :echoInfo "正在下载 Tun 配置 (代理: !PROXY_PREFIX!)..."
 curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%TUN_FILE%.tmp" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Tun 配置下载失败"
