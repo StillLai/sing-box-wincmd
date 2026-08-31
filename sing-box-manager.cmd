@@ -192,7 +192,7 @@ set "RAW_DOWNLOAD_URL=%GITHUB_BASE%/!VERSION!/sing-box-!VERSION_NUM!-windows-amd
 set "PROXY_DOWNLOAD_URL=%PROXY_PREFIX%%RAW_DOWNLOAD_URL%"
 
 call :echoInfo "正在下载 (代理: %PROXY_PREFIX%)..."
-curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "!TEMP_ZIP!" "!PROXY_DOWNLOAD_URL!" >nul 2>nul
+curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "!TEMP_ZIP!" "!PROXY_DOWNLOAD_URL!" >nul
 
 if !errorlevel! neq 0 (
     call :echoError "下载失败，请检查网络连接或代理设置"
