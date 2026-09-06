@@ -71,6 +71,8 @@ For Each logFile In logFolder.Files
     End If
 Next
 
-' Launch sing-box hidden via ShellExecute (inherits admin token reliably)
-Set shellApp = CreateObject("Shell.Application")
-shellApp.ShellExecute exePath, "run -c """ & configPath & """", coreDir, "open", 0
+' Launch sing-box hidden via WshShell.Run (works under SYSTEM account at boot,
+' unlike ShellExecute which requires Explorer to be initialized)
+WshShell.CurrentDirectory = coreDir
+cmdLine = Chr(34) & exePath & Chr(34) & " run -c " & Chr(34) & configPath & Chr(34)
+WshShell.Run cmdLine, 0, False
