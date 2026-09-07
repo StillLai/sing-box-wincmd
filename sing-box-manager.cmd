@@ -57,6 +57,9 @@ if defined PROXY_PREFIX (
     if not "!PROXY_PREFIX:~-1!"=="/" set "PROXY_PREFIX=!PROXY_PREFIX!/"
 )
 
+REM Default STABLE_VERSION to true if not set
+if not defined STABLE_VERSION set "STABLE_VERSION=true"
+
 REM Scheduled task names
 set "TASK_MIXED=sing-box-mixed"
 set "TASK_TUN=sing-box-tun"
@@ -150,21 +153,37 @@ REM ============================================================================
 :updateKernel
 set "API_URL=https://api.github.com/repos/reF1nd/sing-box-releases/releases"
 set "GITHUB_BASE=https://github.com/reF1nd/sing-box-releases/releases/download"
-call :echoInfo "正在检查最新版本..."
+set "CHANNEL=stable"
+if /i "!STABLE_VERSION!"=="false" set "CHANNEL=alpha"
+call :echoInfo "正在检查最新版本 (!CHANNEL!)..."
 
 if not exist "service\core" mkdir "service\core" >nul 2>nul
 
-REM Query GitHub API: curl downloads JSON, PowerShell parses tag_name to a text file, then set /p reads it
-REM (avoids chcp 65001 temp-PS1 encoding issue and for/f backtick pipe issue)
-curl -s --connect-timeout 15 --max-time 15 -o "%temp%\sb_ver.json" "%API_URL%/latest" >nul 2>nul
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$j = Get-Content '%temp%\sb_ver.json' -Raw | ConvertFrom-Json; $j.tag_name | Out-File '%temp%\sb_ver.txt' -Encoding ascii" >nul 2>nul
+REM Query GitHub API for the latest version of the selected channel
+REM Stable: latest non-prerelease; Alpha: latest prerelease with "alpha" in tag
+set "PS_VER=%temp%\sb_query.ps1"
+set "WANT_PRE=false"
+if "!CHANNEL!"=="alpha" set "WANT_PRE=true"
+echo $r = Invoke-RestMethod -Uri '!API_URL!?per_page=30' > "%PS_VER%"
+echo $v = $r ^| Where-Object { $_.prerelease -eq !$WANT_PRE! -and ($_.tag_name -like '*alpha*') -eq !$WANT_PRE! } ^| Select-Object -First 1 >> "%PS_VER%"
+echo if ($v) { $v.tag_name ^| Out-File '%temp%\sb_ver.txt' -Encoding ascii; $v.assets ^| Where-Object { $_.name -match 'windows' -and $_.name -match 'amd64v3' -and $_.name -match '.zip$' } ^| Select-Object -First 1 -ExpandProperty browser_download_url ^| Out-File '%temp%\sb_asset.txt' -Encoding ascii } >> "%PS_VER%"
+for /f "usebackq delims=" %%v in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_VER%" 2^>nul`) do rem
+set "PS_EXIT=!errorlevel!"
+del /f /q "%PS_VER%" >nul 2>nul
+
 set "VERSION="
 if exist "%temp%\sb_ver.txt" set /p VERSION=<"%temp%\sb_ver.txt"
-del /f /q "%temp%\sb_ver.json" "%temp%\sb_ver.txt" >nul 2>nul
+del /f /q "%temp%\sb_ver.txt" >nul 2>nul
 
+if !PS_EXIT! neq 0 (
+    call :echoError "GitHub API 请求失败，请检查网络连接或代理设置"
+    del /f /q "%temp%\sb_asset.txt" >nul 2>nul
+    exit /b 1
+)
 echo !VERSION! | findstr /b /c:"v" >nul 2>nul
 if !errorlevel! neq 0 (
-    call :echoError "获取版本失败，返回值: !VERSION!"
+    call :echoError "获取版本失败，请检查网络连接或代理设置"
+    del /f /q "%temp%\sb_asset.txt" >nul 2>nul
     exit /b 1
 )
 call :echoSuccess "最新版本: !VERSION!"
@@ -180,6 +199,7 @@ set "VERSION_NUM=!VERSION:~1!"
 if defined CURRENT_VERSION (
     if "!CURRENT_VERSION!"=="!VERSION_NUM!" (
         call :echoSuccess "当前已是最新版本 (!VERSION!)，无需更新"
+        del /f /q "%temp%\sb_asset.txt" >nul 2>nul
         exit /b 0
     )
     call :echoInfo "当前版本: !CURRENT_VERSION!，准备更新..."
@@ -191,11 +211,21 @@ if exist "!SINGBOX_EXE!" copy /y "!SINGBOX_EXE!" "!SINGBOX_EXE!.bak" >nul 2>nul
 
 set "TEMP_ZIP=%temp%\sb_update.zip"
 
-REM Build download URL: prepend PROXY_PREFIX for the actual file download
-set "RAW_DOWNLOAD_URL=%GITHUB_BASE%/!VERSION!/sing-box-!VERSION_NUM!-windows-amd64v3.zip"
-set "PROXY_DOWNLOAD_URL=%PROXY_PREFIX%%RAW_DOWNLOAD_URL%"
+REM Build download URL: use asset URL from API, prepend PROXY_PREFIX
+set "ASSET_URL="
+if exist "%temp%\sb_asset.txt" set /p ASSET_URL=<"%temp%\sb_asset.txt"
+del /f /q "%temp%\sb_asset.txt" >nul 2>nul
+if not defined ASSET_URL (
+    call :echoError "未找到 Windows amd64v3 资产文件"
+    goto :restoreKernel
+)
+set "PROXY_DOWNLOAD_URL=%PROXY_PREFIX%%ASSET_URL%"
 
-call :echoInfo "正在下载 (代理: !PROXY_PREFIX!)..."
+if defined PROXY_PREFIX (
+    call :echoInfo "正在下载 (代理: !PROXY_PREFIX!)..."
+) else (
+    call :echoInfo "正在下载 (直连)..."
+)
 curl -f -L -C - --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 300 -o "!TEMP_ZIP!" "!PROXY_DOWNLOAD_URL!" >nul
 
 if !errorlevel! neq 0 (
