@@ -5,8 +5,12 @@ REM Check admin privilege, auto-elevate if needed
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Requesting admin privilege...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-    exit /b
+    if "%*"=="" (
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    ) else (
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -ArgumentList '%*' -Verb RunAs"
+    )
+    exit /b 0
 )
 
 REM Ensure we run from the script's directory
@@ -119,7 +123,7 @@ REM   %1 = config keyword (e.g. "config-mixed" or "config-tun")
 REM   exit /b 0 if running, 1 otherwise
 REM ============================================================================
 :sbRunning
-set "SB_RUNNING=0"
+set "SB_RUNNING=1"
 set "PS_SB=%temp%\sb_running.ps1"
 echo $p = Get-CimInstance Win32_Process -Filter "Name='sing-box.exe'" 2^>$null; if ($p ^| Where-Object { $_.CommandLine -match '%~1' }) { Write-Output 0 } else { Write-Output 1 } > "%PS_SB%"
 for /f %%r in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SB%" 2^>nul') do set "SB_RUNNING=%%r"
@@ -296,7 +300,7 @@ REM ============================================================================
 call :detectBootMode
 call :echoInfo "根据开机自启设置，以 !BOOT_MODE_VAR! 模式重启..."
 call :startMode "!BOOT_MODE_VAR!"
-goto :eof
+exit /b !errorlevel!
 
 REM ============================================================================
 REM Update subscription
@@ -374,17 +378,20 @@ if not exist "%~dp0service\start-singbox.vbs" (
     exit /b 1
 )
 
+set "CREATE_ERR=0"
 call :taskExists "%TASK_MIXED%" || (
     call :echoInfo "创建 %TASK_MIXED% 计划任务 (SYSTEM)..."
-    schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" mixed" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
+    schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" mixed" /sc onstart /ru SYSTEM /f >nul
+    if !errorlevel! neq 0 set "CREATE_ERR=1"
     schtasks /change /tn "%TASK_MIXED%" /disable >nul 2>nul
 )
 call :taskExists "%TASK_TUN%" || (
     call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM)..."
-    schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" tun" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
+    schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" tun" /sc onstart /ru SYSTEM /f >nul
+    if !errorlevel! neq 0 set "CREATE_ERR=1"
     schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
 )
-exit /b 0
+exit /b !CREATE_ERR!
 
 REM ============================================================================
 REM Switch boot mode: enable target task, disable the other, start target mode
@@ -473,6 +480,7 @@ if /i "%~1"=="mixed" (
     call :sbRunning "config-mixed"
     if !errorlevel! equ 0 (
         call :echoSuccess "sing-box (Mixed 模式) 已启动"
+        exit /b 0
     ) else (
         call :echoError "启动失败"
         exit /b 1
@@ -485,6 +493,7 @@ if /i "%~1"=="mixed" (
     if !errorlevel! equ 0 (
         call :waitTunReady
         call :echoSuccess "已切换到 TUN 模式"
+        exit /b 0
     ) else (
         call :echoError "TUN 模式启动失败"
         if exist "!MIXED_CONFIG_ABS!" (
@@ -503,7 +512,6 @@ if /i "%~1"=="mixed" (
         exit /b 1
     )
 )
-exit /b !errorlevel!
 
 REM ============================================================================
 REM Uninstall scheduled tasks
@@ -543,7 +551,7 @@ call :taskExists "%TASK_MIXED%" && (
 ) || (
     call :echoWarn "%TASK_MIXED% 任务不存在，跳过"
 )
-exit /b %HAD_ERROR%
+exit /b !HAD_ERROR!
 
 REM ============================================================================
 REM Display status
