@@ -162,11 +162,10 @@ if not exist "service\core" mkdir "service\core" >nul 2>nul
 REM Query GitHub API for the latest version of the selected channel
 REM Stable: latest non-prerelease; Alpha: latest prerelease with "alpha" in tag
 set "PS_VER=%temp%\sb_query.ps1"
-set "WANT_PRE=false"
-if "!CHANNEL!"=="alpha" set "WANT_PRE=true"
-echo $r = Invoke-RestMethod -Uri '!API_URL!?per_page=30' > "%PS_VER%"
-echo $v = $r ^| Where-Object { $_.prerelease -eq !$WANT_PRE! -and ($_.tag_name -like '*alpha*') -eq !$WANT_PRE! } ^| Select-Object -First 1 >> "%PS_VER%"
-echo if ($v) { $v.tag_name ^| Out-File '%temp%\sb_ver.txt' -Encoding ascii; $v.assets ^| Where-Object { $_.name -match 'windows' -and $_.name -match 'amd64v3' -and $_.name -match '.zip$' } ^| Select-Object -First 1 -ExpandProperty browser_download_url ^| Out-File '%temp%\sb_asset.txt' -Encoding ascii } >> "%PS_VER%"
+set "API_QUERY=!API_URL!?per_page=30"
+set "WANT_PRE=$false"
+if "!CHANNEL!"=="alpha" set "WANT_PRE=$true"
+call :writePS1 "%PS_VER%"
 for /f "usebackq delims=" %%v in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_VER%" 2^>nul`) do rem
 set "PS_EXIT=!errorlevel!"
 del /f /q "%PS_VER%" >nul 2>nul
@@ -276,6 +275,16 @@ if defined RUNNING_MODE (
 
 del /f /q "!SINGBOX_EXE!.bak" >nul 2>nul
 exit /b 0
+
+:writePS1
+REM Write PS1 with delayed expansion DISABLED — preserves ? and | as literals
+REM %API_QUERY% and %WANT_PRE% expand via percent expansion (set on prior lines)
+setlocal disabledelayedexpansion
+echo $r = Invoke-RestMethod -Uri '%API_QUERY%' -TimeoutSec 30 > "%~1"
+echo $v = $r ^| Where-Object { $_.prerelease -eq %WANT_PRE% -and ($_.tag_name -like '*alpha*') -eq %WANT_PRE% } ^| Select-Object -First 1 >> "%~1"
+echo if ($v) { $v.tag_name ^| Out-File '%temp%\sb_ver.txt' -Encoding ascii; $v.assets ^| Where-Object { $_.name -match 'windows' -and $_.name -match 'amd64v3' -and $_.name -match '\.zip$' } ^| Select-Object -First 1 -ExpandProperty browser_download_url ^| Out-File '%temp%\sb_asset.txt' -Encoding ascii } >> "%~1"
+endlocal
+exit /b
 
 :restoreKernel
 call :echoWarn "正在从备份恢复..."
