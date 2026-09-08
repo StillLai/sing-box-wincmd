@@ -357,14 +357,22 @@ if exist "%MIXED_FILE%" copy /y "%MIXED_FILE%" "%MIXED_FILE%.bak" >nul 2>nul
 if exist "%TUN_FILE%" copy /y "%TUN_FILE%" "%TUN_FILE%.bak" >nul 2>nul
 
 REM Download to temp files first (atomic: all-or-nothing)
-call :echoInfo "正在下载 Mixed 配置 (代理: !PROXY_PREFIX!)..."
+if defined PROXY_PREFIX (
+    call :echoInfo "正在下载 Mixed 配置 (代理: !PROXY_PREFIX!)..."
+) else (
+    call :echoInfo "正在下载 Mixed 配置 (直连)..."
+)
 curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%MIXED_FILE%.tmp" "%PROXY_PREFIX%%MIXED_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Mixed 配置下载失败"
     goto :subRestoreAndExit
 )
 
-call :echoInfo "正在下载 Tun 配置 (代理: !PROXY_PREFIX!)..."
+if defined PROXY_PREFIX (
+    call :echoInfo "正在下载 Tun 配置 (代理: !PROXY_PREFIX!)..."
+) else (
+    call :echoInfo "正在下载 Tun 配置 (直连)..."
+)
 curl -f -L --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 60 -o "%TUN_FILE%.tmp" "%PROXY_PREFIX%%TUN_SUB_URL%" >nul 2>nul
 if !errorlevel! neq 0 (
     call :echoError "Tun 配置下载失败"
@@ -465,10 +473,18 @@ if !errorlevel! neq 0 exit /b 1
 if /i "%~1"=="mixed" (
     call :echoInfo "切换开机自启为 Mixed 模式..."
     schtasks /change /tn "%TASK_MIXED%" /enable >nul 2>nul
+    if !errorlevel! neq 0 (
+        call :echoError "启用 %TASK_MIXED% 任务失败"
+        exit /b 1
+    )
     schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
 ) else (
     call :echoInfo "切换开机自启为 TUN 模式..."
     schtasks /change /tn "%TASK_TUN%" /enable >nul 2>nul
+    if !errorlevel! neq 0 (
+        call :echoError "启用 %TASK_TUN% 任务失败"
+        exit /b 1
+    )
     schtasks /change /tn "%TASK_MIXED%" /disable >nul 2>nul
 )
 
@@ -746,9 +762,9 @@ call :echoColor 90 "  ── 维护 ──"
 set "ML=%ESC%[96m  7 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
 set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
 echo.
-set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[90m  9 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
-choice /c 123456780 /n /m "请选择操作: "
+choice /c 123456789 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 
 if "!CHOICE!"=="1" (
@@ -775,7 +791,7 @@ if "!CHOICE!"=="1" (
 ) else if "!CHOICE!"=="8" (
     call :runAction "sub"
     goto :menu
-) else if "!CHOICE!"=="0" (
+) else if "!CHOICE!"=="9" (
     goto :menu
 ) else (
     call :echoError "无效选项"
