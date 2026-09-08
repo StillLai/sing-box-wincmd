@@ -3,16 +3,16 @@
 ' Usage: start-singbox.vbs <mixed|tun> [--direct]
 '   --direct: skip network wait (for manual launch from menu)
 
-Dim mode, direct, logPath
+Dim mode, direct, logPath, fso
 direct = False
+
+Set fso = CreateObject("Scripting.FileSystemObject")
 
 ' Diagnostic log — writes to service\core\vbs_boot.log for troubleshooting
 Function WriteLog(msg)
-    Dim fso2, f
-    Set fso2 = CreateObject("Scripting.FileSystemObject")
-    logPath = fso2.BuildPath(fso2.GetParentFolderName(WScript.ScriptFullName), "core\vbs_boot.log")
+    Dim f
     On Error Resume Next
-    Set f = fso2.OpenTextFile(logPath, 8, True) ' 8=ForAppending
+    Set f = fso.OpenTextFile(logPath, 8, True) ' 8=ForAppending
     If Err.Number = 0 Then
         f.WriteLine Now & " " & msg
         f.Close
@@ -20,6 +20,8 @@ Function WriteLog(msg)
     On Error GoTo 0
 End Function
 
+' Initialize log path once
+logPath = fso.BuildPath(fso.GetParentFolderName(WScript.ScriptFullName), "core\vbs_boot.log")
 WriteLog "VBS started - Args: " & WScript.Arguments.Count
 
 If WScript.Arguments.Count < 1 Then
@@ -60,8 +62,8 @@ WriteLog "Files OK - exe=" & exePath & " config=" & configPath
 ' Skipped when launched with --direct (system is already booted)
 If Not direct Then
     Dim execObj, startTime
-    startTime = Timer
-    Do While (Timer - startTime) < 120
+    startTime = Now
+    Do While DateDiff("s", startTime, Now) < 120
         Set execObj = WshShell.Exec("cmd /c ping -n 1 -w 3000 223.5.5.5")
         Do While execObj.Status = 0
             WScript.Sleep 100
@@ -71,7 +73,7 @@ If Not direct Then
         End If
         WScript.Sleep 3000
     Loop
-    If (Timer - startTime) >= 120 Then
+    If DateDiff("s", startTime, Now) >= 120 Then
         WriteLog "ERROR: Network wait timed out (120s)"
         WScript.Quit 1
     End If
