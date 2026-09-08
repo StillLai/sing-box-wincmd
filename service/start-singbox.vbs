@@ -38,7 +38,6 @@ If WScript.Arguments.Count > 1 Then
 End If
 
 Set WshShell = CreateObject("WScript.Shell")
-Set fso = CreateObject("Scripting.FileSystemObject")
 
 ' Resolve the directory where this VBS script resides
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
