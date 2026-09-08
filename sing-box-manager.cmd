@@ -420,15 +420,25 @@ if not exist "%~dp0service\start-singbox.vbs" (
 set "CREATE_ERR=0"
 call :taskExists "%TASK_MIXED%" || (
     call :echoInfo "创建 %TASK_MIXED% 计划任务 (SYSTEM)..."
-    schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" mixed" /sc onstart /ru SYSTEM /f >nul
-    if !errorlevel! neq 0 set "CREATE_ERR=1"
+    schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" mixed" /sc onstart /ru SYSTEM /f 2>"%temp%\schtasks_err.txt"
+    if !errorlevel! neq 0 (
+        set "CREATE_ERR=1"
+        call :echoError "创建 %TASK_MIXED% 失败:"
+        type "%temp%\schtasks_err.txt" 2>nul
+    )
     schtasks /change /tn "%TASK_MIXED%" /disable >nul 2>nul
+    del /f /q "%temp%\schtasks_err.txt" >nul 2>nul
 )
 call :taskExists "%TASK_TUN%" || (
     call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM)..."
-    schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" tun" /sc onstart /ru SYSTEM /f >nul
-    if !errorlevel! neq 0 set "CREATE_ERR=1"
+    schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" tun" /sc onstart /ru SYSTEM /f 2>"%temp%\schtasks_err.txt"
+    if !errorlevel! neq 0 (
+        set "CREATE_ERR=1"
+        call :echoError "创建 %TASK_TUN% 失败:"
+        type "%temp%\schtasks_err.txt" 2>nul
+    )
     schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
+    del /f /q "%temp%\schtasks_err.txt" >nul 2>nul
 )
 exit /b !CREATE_ERR!
 
