@@ -32,13 +32,13 @@ configPath = fso.BuildPath(coreDir, "config-" & mode & ".json")
 If Not fso.FileExists(exePath) Then WScript.Quit 1
 If Not fso.FileExists(configPath) Then WScript.Quit 1
 
-' Wait for internet connectivity (max 2 minutes, check every 3s)
+' Wait for internet connectivity (max 120s, check every ~6s)
 ' Uses ping (native, works at boot) instead of curl (may not be in SYSTEM PATH)
 ' Skipped when launched with --direct (system is already booted)
 If Not direct Then
-    Dim elapsed, execObj
-    elapsed = 0
-    Do While elapsed < 120
+    Dim execObj, startTime
+    startTime = Timer
+    Do While (Timer - startTime) < 120
         Set execObj = WshShell.Exec("cmd /c ping -n 1 -w 3000 223.5.5.5")
         Do While execObj.Status = 0
             WScript.Sleep 100
@@ -47,9 +47,8 @@ If Not direct Then
             Exit Do
         End If
         WScript.Sleep 3000
-        elapsed = elapsed + 3
     Loop
-    If elapsed >= 120 Then WScript.Quit 1
+    If (Timer - startTime) >= 120 Then WScript.Quit 1
 End If
 
 ' Check if sing-box.exe is already running with this config
