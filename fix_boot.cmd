@@ -22,7 +22,7 @@ if %errorlevel% neq 0 (
 )
 
 echo [2] 启用 Mixed 模式开机自启...
-schtasks /change /tn "sing-box-mixed" /enable >nul 2>nul
+schtasks /change /tn "sing-box-mixed" /enable >nul
 if %errorlevel% neq 0 (
     echo [错误] 启用失败！
 ) else (
@@ -38,6 +38,6 @@ if %errorlevel% neq 0 (
 echo.
 echo ========================================
 echo 完成！请重启电脑测试开机自启
-echo 开机后检查日志: service\core\vbs_boot.log
+echo 日志路径: service\core\vbs_boot.log
 echo ========================================
 pause
