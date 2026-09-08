@@ -3,8 +3,24 @@
 ' Usage: start-singbox.vbs <mixed|tun> [--direct]
 '   --direct: skip network wait (for manual launch from menu)
 
-Dim mode, direct
+Dim mode, direct, logPath
 direct = False
+
+' Diagnostic log — writes to service\core\vbs_boot.log for troubleshooting
+Function WriteLog(msg)
+    Dim fso2, f
+    Set fso2 = CreateObject("Scripting.FileSystemObject")
+    logPath = fso2.BuildPath(fso2.GetParentFolderName(WScript.ScriptFullName), "core\vbs_boot.log")
+    On Error Resume Next
+    Set f = fso2.OpenTextFile(logPath, 8, True) ' 8=ForAppending
+    If Err.Number = 0 Then
+        f.WriteLine Now & " " & msg
+        f.Close
+    End If
+    On Error GoTo 0
+End Function
+
+WriteLog "VBS started - Args: " & WScript.Arguments.Count
 
 If WScript.Arguments.Count < 1 Then
     WScript.Quit 1
@@ -29,8 +45,15 @@ exePath = fso.BuildPath(coreDir, "sing-box.exe")
 configPath = fso.BuildPath(coreDir, "config-" & mode & ".json")
 
 ' Validate required files exist
-If Not fso.FileExists(exePath) Then WScript.Quit 1
-If Not fso.FileExists(configPath) Then WScript.Quit 1
+If Not fso.FileExists(exePath) Then
+    WriteLog "ERROR: sing-box.exe not found at " & exePath
+    WScript.Quit 1
+End If
+If Not fso.FileExists(configPath) Then
+    WriteLog "ERROR: config not found at " & configPath
+    WScript.Quit 1
+End If
+WriteLog "Files OK - exe=" & exePath & " config=" & configPath
 
 ' Wait for internet connectivity (max 120s, check every ~6s)
 ' Uses ping (native, works at boot) instead of curl (may not be in SYSTEM PATH)
@@ -48,7 +71,11 @@ If Not direct Then
         End If
         WScript.Sleep 3000
     Loop
-    If (Timer - startTime) >= 120 Then WScript.Quit 1
+    If (Timer - startTime) >= 120 Then
+        WriteLog "ERROR: Network wait timed out (120s)"
+        WScript.Quit 1
+    End If
+    WriteLog "Network OK"
 End If
 
 ' Check if sing-box.exe is already running with this config
@@ -56,6 +83,7 @@ Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
 Set colProcesses = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE Name='sing-box.exe'")
 For Each objProcess in colProcesses
     If InStr(LCase(objProcess.CommandLine), "config-" & mode) > 0 Then
+        WriteLog "Already running with config-" & mode & ", exiting"
         WScript.Quit 0
     End If
 Next
@@ -75,4 +103,6 @@ Next
 ' unlike ShellExecute which requires Explorer to be initialized)
 WshShell.CurrentDirectory = coreDir
 cmdLine = Chr(34) & exePath & Chr(34) & " run -c " & Chr(34) & configPath & Chr(34)
+WriteLog "Launching: " & cmdLine
 WshShell.Run cmdLine, 0, False
+WriteLog "Launch sent"
