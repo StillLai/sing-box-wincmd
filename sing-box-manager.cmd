@@ -767,9 +767,9 @@ call :echoColor 90 "  ── 维护 ──"
 set "ML=%ESC%[96m  7 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
 set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
 echo.
-set "ML=%ESC%[90m  9 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
-choice /c 123456789 /n /m "请选择操作: "
+choice /c 1234567890 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 
 if "!CHOICE!"=="1" (
@@ -796,7 +796,7 @@ if "!CHOICE!"=="1" (
 ) else if "!CHOICE!"=="8" (
     call :runAction "sub"
     goto :menu
-) else if "!CHOICE!"=="9" (
+) else if "!CHOICE!"=="10" (
     goto :menu
 ) else (
     call :echoError "无效选项"
