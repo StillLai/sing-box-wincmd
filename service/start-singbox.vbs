@@ -177,7 +177,7 @@ Const WAIT_AFTER_LAUNCH = 8000
 Const WAIT_BETWEEN_RETRIES = 5000
 
 Dim cmdLine
-cmdLine = "cmd.exe /c start /b """" """ & exePath & """ run -c """ & configPath & """ -d """ & coreDir & """"
+cmdLine = "cmd.exe /c start /b """" """ & exePath & """ run -c """ & configPath & """ -D """ & coreDir & """"
 
 Dim launched, attempt, attemptStart
 launched = False
