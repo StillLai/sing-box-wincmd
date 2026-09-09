@@ -3,12 +3,28 @@
 ' Usage: start-singbox.vbs <mixed|tun> [--direct]
 '   --direct: skip network wait (for manual launch from menu)
 
-Dim mode, direct, logPath, fso
+Dim mode, direct, logPath, fso, WshShell, scriptDir, coreDir, exePath, configPath, singBoxLog
 direct = False
-
 Set fso = CreateObject("Scripting.FileSystemObject")
+Set WshShell = CreateObject("WScript.Shell")
+scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
+coreDir = fso.BuildPath(scriptDir, "core")
+exePath = fso.BuildPath(coreDir, "sing-box.exe")
+singBoxLog = fso.BuildPath(coreDir, "sing-box.log")
 
-' Diagnostic log — writes to service\core\vbs_boot.log for troubleshooting
+' ============================================================================
+' LogRotate: Two-generation rotation (current -> old)
+' ============================================================================
+Sub LogRotate(curPath, oldPath)
+    On Error Resume Next
+    If fso.FileExists(oldPath) Then fso.DeleteFile oldPath, True
+    If fso.FileExists(curPath) Then fso.MoveFile curPath, oldPath
+    On Error GoTo 0
+End Sub
+
+' ============================================================================
+' WriteLog: Append a timestamped line to vbs_boot.log
+' ============================================================================
 Function WriteLog(msg)
     Dim f
     On Error Resume Next
@@ -20,10 +36,52 @@ Function WriteLog(msg)
     On Error GoTo 0
 End Function
 
-' Initialize log path once
-logPath = fso.BuildPath(fso.GetParentFolderName(WScript.ScriptFullName), "core\vbs_boot.log")
-WriteLog "VBS started - Args: " & WScript.Arguments.Count
+' ============================================================================
+' IsProcessRunning: Check if sing-box.exe is running with matching config
+' ============================================================================
+Function IsProcessRunning(processName, configKey)
+    IsProcessRunning = False
+    On Error Resume Next
+    Dim wmi, processes, proc
+    Set wmi = GetObject("winmgmts:\\.\root\cimv2")
+    Set processes = wmi.ExecQuery("SELECT * FROM Win32_Process WHERE Name = '" & processName & "'")
+    For Each proc In processes
+        If InStr(1, proc.CommandLine, configKey, vbTextCompare) > 0 Then
+            IsProcessRunning = True
+            Exit For
+        End If
+    Next
+    On Error GoTo 0
+End Function
 
+' ============================================================================
+' SingBoxLogModified: Check if sing-box.log was modified after a given time
+'   (distinguishes "Job Object kill" from "config error")
+' ============================================================================
+Function SingBoxLogModified(logFile, sinceTime)
+    SingBoxLogModified = False
+    On Error Resume Next
+    If fso.FileExists(logFile) Then
+        Dim f
+        Set f = fso.GetFile(logFile)
+        If f.DateLastModified > sinceTime Then
+            SingBoxLogModified = True
+        End If
+    End If
+    On Error GoTo 0
+End Function
+
+' ============================================================================
+' Step 1: Rotate vbs_boot.log ONLY (not sing-box.log or other files)
+' ============================================================================
+Dim logOldPath
+logPath = fso.BuildPath(coreDir, "vbs_boot.log")
+logOldPath = fso.BuildPath(coreDir, "vbs_boot.old.log")
+LogRotate logPath, logOldPath
+
+' ============================================================================
+' Step 2: Parse arguments
+' ============================================================================
 If WScript.Arguments.Count < 1 Then
     WScript.Quit 1
 End If
@@ -36,16 +94,11 @@ If WScript.Arguments.Count > 1 Then
         direct = True
     End If
 End If
-
-Set WshShell = CreateObject("WScript.Shell")
-
-' Resolve the directory where this VBS script resides
-scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
-coreDir = fso.BuildPath(scriptDir, "core")
-exePath = fso.BuildPath(coreDir, "sing-box.exe")
 configPath = fso.BuildPath(coreDir, "config-" & mode & ".json")
 
-' Validate required files exist
+' ============================================================================
+' Step 3: Validate files exist
+' ============================================================================
 If Not fso.FileExists(exePath) Then
     WriteLog "ERROR: sing-box.exe not found at " & exePath
     WScript.Quit 1
@@ -54,56 +107,109 @@ If Not fso.FileExists(configPath) Then
     WriteLog "ERROR: config not found at " & configPath
     WScript.Quit 1
 End If
-WriteLog "Files OK - exe=" & exePath & " config=" & configPath
 
-' Wait for internet connectivity (max 120s, check every ~6s)
-' Uses ping (native, works at boot) instead of curl (may not be in SYSTEM PATH)
-' Skipped when launched with --direct (system is already booted)
+' ============================================================================
+' Step 4: Log startup info
+' ============================================================================
+WriteLog "========== sing-box boot =========="
+WriteLog "Start time: " & Now
+WriteLog "Mode: " & mode & " | Direct: " & direct
+WriteLog "Exe: " & exePath
+WriteLog "Config: " & configPath
+WriteLog "Core dir: " & coreDir
+
+' ============================================================================
+' Step 5: System ready delay (30s) + network readiness check (60s)
+'   Skipped in --direct mode (manual launch)
+' ============================================================================
 If Not direct Then
-    Dim execObj, startTime
-    startTime = Now
-    Do While DateDiff("s", startTime, Now) < 120
+    ' 30-second system ready delay with heartbeat every 5s
+    Dim i
+    For i = 1 To 6
+        WriteLog "Waiting for system ready... (" & i * 5 & "s / 30s)"
+        WScript.Sleep 5000
+    Next
+
+    ' Network readiness check: ping 223.5.5.5, up to 60s
+    Dim execObj, netReady, netStart, netElapsed
+    netReady = False
+    netStart = Now
+    Do While DateDiff("s", netStart, Now) < 60
         Set execObj = WshShell.Exec("cmd /c ping -n 1 -w 3000 223.5.5.5")
         Do While execObj.Status = 0
             WScript.Sleep 100
         Loop
         If execObj.ExitCode = 0 Then
+            netReady = True
             Exit Do
         End If
-        WScript.Sleep 3000
+        WScript.Sleep 2000
     Loop
-    If DateDiff("s", startTime, Now) >= 120 Then
-        WriteLog "ERROR: Network wait timed out (120s)"
-        WScript.Quit 1
+
+    netElapsed = DateDiff("s", netStart, Now)
+    If netReady Then
+        WriteLog "Network ready after " & netElapsed & "s"
+    Else
+        WriteLog "WARN: Network not ready after 60s, proceeding anyway"
     End If
-    WriteLog "Network OK"
 End If
 
-' Check if sing-box.exe is already running with this config
+' ============================================================================
+' Step 6: Check if already running via WMI
+' ============================================================================
+On Error Resume Next
+Dim objWMIService, colProcesses, objProcess
 Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
 Set colProcesses = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE Name='sing-box.exe'")
-For Each objProcess in colProcesses
+For Each objProcess In colProcesses
     If InStr(LCase(objProcess.CommandLine), "config-" & mode) > 0 Then
         WriteLog "Already running with config-" & mode & ", exiting"
         WScript.Quit 0
     End If
 Next
+On Error GoTo 0
 
-' Rotate log files: rename *.log to *.old.log (overwrite if exists, skip *.old.log)
-Dim logFolder, logFile, oldLogPath
-Set logFolder = fso.GetFolder(coreDir)
-For Each logFile In logFolder.Files
-    If LCase(fso.GetExtensionName(logFile.Name)) = "log" And LCase(Right(logFile.Name, 8)) <> ".old.log" Then
-        oldLogPath = fso.BuildPath(coreDir, fso.GetBaseName(logFile.Name) & ".old.log")
-        If fso.FileExists(oldLogPath) Then fso.DeleteFile oldLogPath, True
-        fso.MoveFile logFile.Path, oldLogPath
+' ============================================================================
+' Step 7: Launch with retry + verification
+' ============================================================================
+Const MAX_RETRIES = 3
+Const WAIT_AFTER_LAUNCH = 8000
+Const WAIT_BETWEEN_RETRIES = 5000
+
+Dim cmdLine
+cmdLine = "cmd.exe /c start /b """" """ & exePath & """ run -c """ & configPath & """ -d """ & coreDir & """"
+
+Dim launched, attempt, attemptStart
+launched = False
+
+For attempt = 1 To MAX_RETRIES
+    attemptStart = Now
+    WriteLog "Launch attempt " & attempt & "/" & MAX_RETRIES
+    WriteLog "  CMD: " & cmdLine
+
+    WshShell.Run cmdLine, 0, False
+    WScript.Sleep WAIT_AFTER_LAUNCH
+
+    If IsProcessRunning("sing-box.exe", "config-" & mode) Then
+        WriteLog "SUCCESS: sing-box is running (attempt " & attempt & ")"
+        launched = True
+        Exit For
+    Else
+        If SingBoxLogModified(singBoxLog, attemptStart) Then
+            WriteLog "WARN: sing-box started but exited (attempt " & attempt & ") - likely config or port error, check sing-box.log"
+        Else
+            WriteLog "WARN: sing-box not detected, likely killed by Job Object (attempt " & attempt & ")"
+        End If
+        If attempt < MAX_RETRIES Then
+            WriteLog "Retrying in 5 seconds..."
+            WScript.Sleep WAIT_BETWEEN_RETRIES
+        End If
     End If
 Next
 
-' Launch sing-box hidden via WshShell.Run (works under SYSTEM account at boot,
-' unlike ShellExecute which requires Explorer to be initialized)
-WshShell.CurrentDirectory = coreDir
-cmdLine = Chr(34) & exePath & Chr(34) & " run -c " & Chr(34) & configPath & Chr(34)
-WriteLog "Launching: " & cmdLine
-WshShell.Run cmdLine, 0, False
-WriteLog "Launch sent"
+If Not launched Then
+    WriteLog "FAILED: sing-box could not be started after " & MAX_RETRIES & " attempts"
+    WScript.Quit 1
+End If
+
+WriteLog "========== boot complete =========="

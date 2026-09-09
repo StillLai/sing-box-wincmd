@@ -436,6 +436,7 @@ call :taskExists "%TASK_MIXED%" || (
     )
     schtasks /change /tn "%TASK_MIXED%" /disable >nul 2>nul
     del /f /q "%temp%\schtasks_err.txt" >nul 2>nul
+    powershell -NoProfile -Command "$t=Get-ScheduledTask -TaskName '%TASK_MIXED%';$s=$t.Settings;$s.RestartCount=3;$s.RestartInterval='PT1M';Set-ScheduledTask -TaskName '%TASK_MIXED%' -Settings $s" >nul 2>nul
 )
 call :taskExists "%TASK_TUN%" || (
     call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM)..."
@@ -447,7 +448,11 @@ call :taskExists "%TASK_TUN%" || (
     )
     schtasks /change /tn "%TASK_TUN%" /disable >nul 2>nul
     del /f /q "%temp%\schtasks_err.txt" >nul 2>nul
+    powershell -NoProfile -Command "$t=Get-ScheduledTask -TaskName '%TASK_TUN%';$s=$t.Settings;$s.RestartCount=3;$s.RestartInterval='PT1M';Set-ScheduledTask -TaskName '%TASK_TUN%' -Settings $s" >nul 2>nul
 )
+REM Set retry policy for existing tasks too (catches tasks created before this feature)
+powershell -NoProfile -Command "$t=Get-ScheduledTask -TaskName '%TASK_MIXED%';$s=$t.Settings;$s.RestartCount=3;$s.RestartInterval='PT1M';Set-ScheduledTask -TaskName '%TASK_MIXED%' -Settings $s" >nul 2>nul
+powershell -NoProfile -Command "$t=Get-ScheduledTask -TaskName '%TASK_TUN%';$s=$t.Settings;$s.RestartCount=3;$s.RestartInterval='PT1M';Set-ScheduledTask -TaskName '%TASK_TUN%' -Settings $s" >nul 2>nul
 exit /b !CREATE_ERR!
 
 REM ============================================================================
