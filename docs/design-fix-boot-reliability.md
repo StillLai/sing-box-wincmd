@@ -122,7 +122,7 @@ LogRotate logPath, logOldPath
 修复方案：使用 `cmd /c start /b` 包装，让 sing-box 进程脱离父级 Job Object。
 
 ```vbs
-cmdLine = "cmd.exe /c start /b """" """ & exePath & """ run -c """ & cfgPath & """ -d """ & serviceDir & """"
+cmdLine = "cmd.exe /c start /b """" """ & exePath & """ run -c """ & cfgPath & """ -D """ & serviceDir & """"
 ```
 
 **原理**：`start /b` 创建的子进程在独立的进程组中运行，不继承父进程的 Job Object 限制。当 VBS 和包装 cmd 退出后，sing-box 进程继续独立运行。
