@@ -144,7 +144,7 @@ if /i "%~1"=="!MIXED_CONFIG_ABS!" (
 ) else (
     set "SB_MODE=tun"
 )
-start "" /b wscript.exe "%~dp0service\start-singbox.vbs" !SB_MODE! --direct
+start "" wscript.exe "%~dp0service\start-singbox.vbs" !SB_MODE! --direct
 goto :eof
 
 REM ============================================================================
