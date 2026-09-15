@@ -299,6 +299,8 @@ if !errorlevel! neq 0 (
 REM All downloads succeeded �?atomically replace configs
 move /y "%MIXED_FILE%.tmp" "%MIXED_FILE%" >nul 2>nul
 move /y "%TUN_FILE%.tmp" "%TUN_FILE%" >nul 2>nul
+if not exist "%MIXED_FILE%" goto :subRestoreAndExit
+if not exist "%TUN_FILE%" goto :subRestoreAndExit
 del /f /q "%MIXED_FILE%.bak" "%TUN_FILE%.bak" >nul 2>nul
 call :echoSuccess "订阅配置已更�?
 REM Restart running instance to apply new config
@@ -340,7 +342,7 @@ if not defined WINSW_URL call :echoError "无法获取 WinSW 下载地址" & exi
 set "DL=!WINSW_URL!"
 if defined PROXY_PREFIX set "DL=!PROXY_PREFIX!!WINSW_URL!"
 call :echoInfo "下载: !DL!"
-curl -L -o "!WINSW_EXE!" "!DL!" --retry 3 --connect-timeout 30 -#
+curl -f -L -o "!WINSW_EXE!" "!DL!" --retry 3 --connect-timeout 30 -#
 if !errorlevel! neq 0 call :echoError "WinSW 下载失败" & del /f /q "!WINSW_EXE!" >nul 2>nul & exit /b 1
 call :echoSuccess "WinSW 下载完成"
 exit /b 0
@@ -352,7 +354,7 @@ set "WINSW_CONFIG=config-!WINSW_MODE!.json"
 echo ^<service^>
 echo ^<id^>sing-box^</id^>
 echo ^<name^>sing-box^</name^>
-echo ^<executable^>%%BASE%%\core\sing-box.exe^</executable^>
+echo ^<executable^>"%%BASE%%\core\sing-box.exe"^</executable^>
 echo ^<arguments^>run -c "%%BASE%%\core\!WINSW_CONFIG!" -D "%%BASE%%\core"^</arguments^>
 echo ^<workingdirectory^>%%BASE%%\core^</workingdirectory^>
 echo ^<startmode^>automatic^</startmode^>
@@ -601,7 +603,7 @@ call :echoColor 90 "  ── 维护 ──"
 set "ML=%ESC%[96m  7 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
 set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
 echo.
-set "ML=%ESC%[90m  0 - 刷新状�?ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
 choice /c 123456780 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
