@@ -27,7 +27,7 @@ set "CONFIG_FILE=%~dp0config.env"
 if not exist "%CONFIG_FILE%" (
     echo [错误] 未找到 config.env，请复制 config.env.example 为 config.env 并填入你的配置。
     echo         copy config.env.example config.env
-    pause >nul
+    pause
     exit /b 1
 )
 for /f "usebackq tokens=1,* delims==" %%a in ("%CONFIG_FILE%") do (
@@ -43,12 +43,12 @@ REM If not set or empty, downloads will go directly to GitHub
 REM Validate required config
 if not defined MIXED_SUB_URL (
     echo [错误] config.env 中未设置 MIXED_SUB_URL，请检查配置。
-    pause >nul
+    pause
     exit /b 1
 )
 if not defined TUN_SUB_URL (
     echo [错误] config.env 中未设置 TUN_SUB_URL，请检查配置。
-    pause >nul
+    pause
     exit /b 1
 )
 
@@ -604,7 +604,7 @@ if !SUCCESS!==0 (
     call :echoColor 91 "========================================"
 )
 echo.
-pause >nul
+pause
 exit /b !SUCCESS!
 
 REM ============================================================================
