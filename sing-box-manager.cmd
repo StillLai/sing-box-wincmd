@@ -411,6 +411,7 @@ timeout /t 1 /nobreak >nul 2>nul
 set /a "_sw+=1"
 call :sbRunning
 if !errorlevel! equ 0 if !_sw! lss 10 goto :stopSingbox_wait
+del /f /q "%temp%\sb_running_mode" >nul 2>nul
 call :echoSuccess "sing-box 已停止"
 exit /b 0
 :stopSingbox_notrunning
@@ -442,6 +443,7 @@ call :echoInfo "启动 sing-box (%~1 模式)..."
 timeout /t 5 /nobreak >nul 2>nul
 call :sbRunning
 if !errorlevel! neq 0 goto :startMode_fail
+echo %~1 > "%temp%\sb_running_mode"
 if /i "%~1"=="tun" call :waitTunReady
 call :echoSuccess "sing-box (%~1 模式) 已启动"
 exit /b 0
@@ -497,9 +499,16 @@ if "!BOOT_MODE!"=="Mixed" ( call :echoColor 96 "开机自启   Mixed 模式" )
 if "!BOOT_MODE!"=="TUN" ( call :echoColor 96 "开机自启   TUN 模式" )
 sc query sing-box 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! equ 0 (
-    if "!BOOT_MODE_VAR!"=="tun" ( call :echoColor 92 "当前配置:   TUN 模式" )
-    if "!BOOT_MODE_VAR!"=="mixed" ( call :echoColor 92 "当前配置:   Mixed 模式" )
-) else ( call :echoColor 93 "当前配置:   已停止" )
+    set "RUN_MODE="
+    if exist "%temp%\sb_running_mode" set /p RUN_MODE=<"%temp%\sb_running_mode"
+    if defined RUN_MODE (
+        if /i "!RUN_MODE!"=="tun" ( call :echoColor 92 "当前运行:   TUN 模式" )
+        if /i "!RUN_MODE!"=="mixed" ( call :echoColor 92 "当前运行:   Mixed 模式" )
+    ) else (
+        if "!BOOT_MODE_VAR!"=="tun" ( call :echoColor 92 "当前运行:   TUN 模式" )
+        if "!BOOT_MODE_VAR!"=="mixed" ( call :echoColor 92 "当前运行:   Mixed 模式" )
+    )
+) else ( call :echoColor 93 "当前运行:   已停止" )
 goto :eof
 REM ============================================================================
 REM Execute specified action
