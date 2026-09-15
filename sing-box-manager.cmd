@@ -517,13 +517,19 @@ call :updateSub
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_restart_mixed
+call :detectBootMode
+set "ORIG_MODE=!BOOT_MODE_VAR!"
 call :updateWinswXml mixed
 call :startMode "mixed"
+if !errorlevel! equ 0 call :updateWinswXml "!ORIG_MODE!"
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_restart_tun
+call :detectBootMode
+set "ORIG_MODE=!BOOT_MODE_VAR!"
 call :updateWinswXml tun
 call :startMode "tun"
+if !errorlevel! equ 0 call :updateWinswXml "!ORIG_MODE!"
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_start-mixed
