@@ -17,6 +17,7 @@ Windows 平台的 sing-box 代理管理工具，通过 WinSW (Windows Service Wr
 - **`exit /b` 在 `(...)` 括号块内会终止整个脚本**，而非仅从子函数返回。所有 `exit /b` 必须在括号块外，或使用 `goto :label` 跳转到块外的退出点。
 - **`call :subroutine` 在 `(...)` 块内执行时，如果子函数内有 `exit /b`，也会导致脚本崩溃**。所有需要 `call` 子函数的逻辑应使用 `goto :label` 分派模式，而非 `if/else if` 块内 `call`。
 - **`echo ^^<` 和 `^^>` 是过度转义**，在 `(...)` 块中会导致"语法错误"。CMD 中转义 `<` 和 `>` 应使用单个 `^`：`echo ^<tag^>`。
+- **文件编码必须是 UTF-8 无 BOM** — 中文字符如果编码损坏（U+FFFD）会导致 `echo` 输出乱码和 `findstr` 匹配失败。
 
 ### 管理脚本
 - 模式切换通过修改 XML `<arguments>` + 重启服务实现。
