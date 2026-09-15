@@ -573,36 +573,60 @@ REM ============================================================================
 set "ACT=%~1"
 set "SUCCESS=1"
 
-if /i "%ACT%"=="kernel" (
-    call :updateKernel
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="sub" (
-    call :updateSub
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="start-mixed" (
-    call :startMode "mixed"
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="start-tun" (
-    call :startMode "tun"
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="stop" (
-    call :stopSingbox
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="boot-mixed" (
-    call :switchBoot "mixed"
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="boot-tun" (
-    call :switchBoot "tun"
-    set "SUCCESS=!errorlevel!"
-) else if /i "%ACT%"=="uninstall" (
-    call :uninstallTask
-    set "SUCCESS=!errorlevel!"
-) else (
-    call :echoError "未知操作: %ACT%"
-    call :echoInfo "用法: kernel / sub / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall"
-    set "SUCCESS=1"
-)
+if /i "%ACT%"=="kernel" goto :do_kernel
+if /i "%ACT%"=="sub" goto :do_sub
+if /i "%ACT%"=="start-mixed" goto :do_start-mixed
+if /i "%ACT%"=="start-tun" goto :do_start-tun
+if /i "%ACT%"=="stop" goto :do_stop
+if /i "%ACT%"=="boot-mixed" goto :do_boot-mixed
+if /i "%ACT%"=="boot-tun" goto :do_boot-tun
+if /i "%ACT%"=="uninstall" goto :do_uninstall
+call :echoError "未知操作: %ACT%"
+call :echoInfo "用法: kernel / sub / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall"
+set "SUCCESS=1"
+goto :runAction_done
 
+:do_kernel
+call :updateKernel
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+
+:do_sub
+call :updateSub
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+
+:do_start-mixed
+call :startMode "mixed"
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+
+:do_start-tun
+call :startMode "tun"
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+
+:do_stop
+call :stopSingbox
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+
+:do_boot-mixed
+call :switchBoot "mixed"
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+
+:do_boot-tun
+call :switchBoot "tun"
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+
+:do_uninstall
+call :uninstallTask
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+
+:runAction_done
 echo.
 if !SUCCESS!==0 (
     call :echoColor 92 "========================================"
