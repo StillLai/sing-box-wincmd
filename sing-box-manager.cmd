@@ -353,6 +353,8 @@ if not defined WINSW_MODE set "WINSW_MODE=mixed"
 set "WINSW_SRC=%~dp0service\sing-box-service-!WINSW_MODE!.xml"
 if not exist "!WINSW_SRC!" call :echoError "未找到 !WINSW_SRC!" & exit /b 1
 copy /y "!WINSW_SRC!" "!WINSW_XML!" >nul 2>nul
+echo [DEBUG] updateWinswXml: copied !WINSW_SRC! to !WINSW_XML!, errorlevel=!errorlevel! >> "%temp%\sb_debug.log"
+findstr "arguments" "!WINSW_XML!" >> "%temp%\sb_debug.log"
 exit /b 0
 :installService
 call :downloadWinsw
@@ -415,11 +417,13 @@ REM Start or restart sing-box in specified mode
 REM   %1 = "mixed" or "tun"
 REM ============================================================================
 :startMode
+echo [DEBUG] startMode called with "%~1" >> "%temp%\sb_debug.log"
 if /i "%~1"=="tun" (
     if not exist "service\core\config-tun.json" goto :startMode_notun
 ) else (
     if not exist "service\core\config-mixed.json" goto :startMode_nomixed
 )
+echo [DEBUG] config file check passed >> "%temp%\sb_debug.log"
 call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
 call :sbRunning
@@ -437,9 +441,12 @@ call :sbRunning
 if !errorlevel! equ 0 call :echoError "服务停止超时，请手动停止后重试" & exit /b 1
 :startMode_skipstop
 call :echoInfo "启动 sing-box (%~1 模式)..."
+echo [DEBUG] startMode: starting with WinSW, mode=%~1 >> "%temp%\sb_debug.log"
 "!WINSW_EXE!" start >nul 2>nul
+echo [DEBUG] startMode: WinSW start returned !errorlevel! >> "%temp%\sb_debug.log"
 timeout /t 5 /nobreak >nul 2>nul
 call :sbRunning
+echo [DEBUG] startMode: sbRunning returned !errorlevel! >> "%temp%\sb_debug.log"
 if !errorlevel! neq 0 goto :startMode_fail
 if /i "%~1"=="tun" call :waitTunReady
 call :echoSuccess "sing-box (%~1 模式) 已启动"
@@ -548,10 +555,15 @@ goto :runAction_done
 call :detectBootMode
 set "ORIG_MODE=!BOOT_MODE_VAR!"
 call :updateWinswXml tun
+echo [DEBUG] updateWinswXml tun errorlevel=!errorlevel! >> "%temp%\sb_debug.log"
+echo [DEBUG] ORIG_MODE=!ORIG_MODE! >> "%temp%\sb_debug.log"
 call :startMode "tun"
+echo [DEBUG] startMode tun errorlevel=!errorlevel! >> "%temp%\sb_debug.log"
 set "START_ERR=!errorlevel!"
 call :updateWinswXml "!ORIG_MODE!"
+echo [DEBUG] restore XML errorlevel=!errorlevel! >> "%temp%\sb_debug.log"
 set "SUCCESS=!START_ERR!"
+echo [DEBUG] FINAL SUCCESS=!SUCCESS! >> "%temp%\sb_debug.log"
 goto :runAction_done
 :do_stop
 call :stopSingbox
