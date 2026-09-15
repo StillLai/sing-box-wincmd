@@ -38,6 +38,8 @@ service/
 │   ├── config-mixed.json     # Mixed 模式配置（订阅更新）
 │   ├── config-tun.json       # TUN 模式配置（订阅更新）
 │   └── sing-box.log          # sing-box 运行日志
+├── sing-box-service-mixed.xml # WinSW XML 模板（Mixed 模式，项目内静态文件）
+├── sing-box-service-tun.xml   # WinSW XML 模板（TUN 模式，项目内静态文件）
 ├── sing-box-service.exe      # WinSW 二进制（自动下载，gitignore）
-└── sing-box-service.xml      # WinSW 配置（运行时生成，gitignore）
+└── sing-box-service.xml      # WinSW 配置（从模板复制，gitignore）
 ```
