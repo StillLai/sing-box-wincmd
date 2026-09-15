@@ -521,24 +521,18 @@ call :detectBootMode
 set "ORIG_MODE=!BOOT_MODE_VAR!"
 call :updateWinswXml mixed
 call :startMode "mixed"
-if !errorlevel! equ 0 call :updateWinswXml "!ORIG_MODE!"
-set "SUCCESS=!errorlevel!"
+set "START_ERR=!errorlevel!"
+call :updateWinswXml "!ORIG_MODE!"
+set "SUCCESS=!START_ERR!"
 goto :runAction_done
 :do_restart_tun
 call :detectBootMode
 set "ORIG_MODE=!BOOT_MODE_VAR!"
 call :updateWinswXml tun
 call :startMode "tun"
-if !errorlevel! equ 0 call :updateWinswXml "!ORIG_MODE!"
-set "SUCCESS=!errorlevel!"
-goto :runAction_done
-:do_start-mixed
-call :startMode "mixed"
-set "SUCCESS=!errorlevel!"
-goto :runAction_done
-:do_start-tun
-call :startMode "tun"
-set "SUCCESS=!errorlevel!"
+set "START_ERR=!errorlevel!"
+call :updateWinswXml "!ORIG_MODE!"
+set "SUCCESS=!START_ERR!"
 goto :runAction_done
 :do_stop
 call :stopSingbox
