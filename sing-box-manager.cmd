@@ -491,9 +491,9 @@ if !errorlevel! equ 0 (
     if "!BOOT_MODE_VAR!"=="tun" set "BOOT_MODE=TUN"
     if "!BOOT_MODE_VAR!"=="mixed" set "BOOT_MODE=Mixed"
 )
-if "!BOOT_MODE!"=="未注册" ( call :echoColor 90 "开机自启   未注册" )
-if "!BOOT_MODE!"=="Mixed" ( call :echoColor 96 "开机自启   Mixed 模式" )
-if "!BOOT_MODE!"=="TUN" ( call :echoColor 96 "开机自启   TUN 模式" )
+if "!BOOT_MODE!"=="未注册" ( call :echoColor 90 "开机自启:   未注册" )
+if "!BOOT_MODE!"=="Mixed" ( call :echoColor 96 "开机自启:   Mixed 模式" )
+if "!BOOT_MODE!"=="TUN" ( call :echoColor 96 "开机自启:   TUN 模式" )
 sc query sing-box 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! neq 0 goto :showStatus_stopped
 set "RUN_MODE="
