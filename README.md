@@ -47,10 +47,15 @@ copy config.env.example config.env
 MIXED_SUB_URL=https://gist.githubusercontent.com/username/gist_id/raw/config-mixed.json
 
 # TUN 模式配置文件的完整下载地址
-TUN_SUB_URL=https://gist.githubusercontent.com/username/gist_id/raw/config-tun.json
+TUN_SUB_URL=https://gist.githubusercontent.com/username/gist_id/raw/filename.json
 
-# GitHub 下载代理（国内用户建议保留）
-PROXY_PREFIX=https://gh-proxy.org/
+# 内核版本通道 (可选，默认 true)
+# true  = 稳定版 (推荐)
+# false = Alpha 预览版 (最新功能)
+# STABLE_VERSION=true
+
+# GitHub 下载代理前缀 (可选，国内用户建议设置)
+# PROXY_PREFIX=https://ghfast.top/
 ```
 
 ### 3. 运行
@@ -91,7 +96,8 @@ sing-box-wincmd/
     └── core/                 # 运行时目录（自动创建，不提交）
         ├── sing-box.exe      # sing-box 二进制（自动下载）
         ├── config-mixed.json # Mixed 配置（自动拉取）
-        └── config-tun.json   # TUN 配置（自动拉取）
+        ├── config-tun.json   # TUN 配置（自动拉取）
+        └── sing-box.log      # sing-box 运行日志
 ```
 
 ## 工作原理
