@@ -113,7 +113,7 @@ if !errorlevel! equ 0 exit /b 0
 exit /b 1
 
 REM ============================================================================
-REM Check if sing-box service is running
+REM Check if sing-box service is running (ignores arguments)
 REM   exit /b 0 if running, 1 otherwise
 REM ============================================================================
 :sbRunning
@@ -216,15 +216,11 @@ if !ZSIZE! lss 1000000 (
 call :echoSuccess "下载完成 (!ZSIZE! 字节)"
 
 REM Detect mode BEFORE killing so we know what to restart
-set "RUNNING_MODE="
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 set "RUNNING_MODE=mixed"
-call :sbRunning "config-tun"
-if !errorlevel! equ 0 set "RUNNING_MODE=tun"
-if defined RUNNING_MODE (
-    call :echoInfo "检测到 sing-box 正在运行 (%RUNNING_MODE%)，正在停止..."
+call :sbRunning
+if !errorlevel! equ 0 (
+    call :echoInfo "检测到 sing-box 正在运行，正在停止..."
     "!WINSW_EXE!" stop >nul 2>nul
-    if !errorlevel! neq 0 taskkill /f /im sing-box.exe >nul 2>nul
+    if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
 )
 
@@ -365,15 +361,11 @@ call :echoSuccess "订阅配置已更新"
 
 REM Restart running instance to apply new config
 REM Detect mode BEFORE killing so we know what to restart
-set "RUNNING_MODE="
-call :sbRunning "config-mixed"
-if !errorlevel! equ 0 set "RUNNING_MODE=mixed"
-call :sbRunning "config-tun"
-if !errorlevel! equ 0 set "RUNNING_MODE=tun"
-if defined RUNNING_MODE (
-    call :echoInfo "检测到 sing-box 正在运行 (%RUNNING_MODE%)，正在重启以应用新配置..."
+call :sbRunning
+if !errorlevel! equ 0 (
+    call :echoInfo "检测到 sing-box 正在运行，正在重启以应用新配置..."
     "!WINSW_EXE!" stop >nul 2>nul
-    if !errorlevel! neq 0 taskkill /f /im sing-box.exe >nul 2>nul
+    if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
     call :restartBootMode
     if !errorlevel! neq 0 (
@@ -475,7 +467,7 @@ call :sbRunning "config"
 if !errorlevel! neq 0 ( call :echoWarn "sing-box 未在运行" & exit /b 0 )
 call :echoInfo "停止 sing-box..."
 "!WINSW_EXE!" stop >nul 2>nul
-if !errorlevel! neq 0 taskkill /f /im sing-box.exe >nul 2>nul
+if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
 call :echoSuccess "sing-box 已停止"
 exit /b 0
 
