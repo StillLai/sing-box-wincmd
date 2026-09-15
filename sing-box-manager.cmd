@@ -495,6 +495,7 @@ set "ACT=%~1"
 set "SUCCESS=1"
 if /i "%ACT%"=="kernel" goto :do_kernel
 if /i "%ACT%"=="sub" goto :do_sub
+if /i "%ACT%"=="winsw" goto :do_winsw
 if /i "%ACT%"=="restart-mixed" goto :do_restart_mixed
 if /i "%ACT%"=="restart-tun" goto :do_restart_tun
 if /i "%ACT%"=="start" goto :do_restart_mixed
@@ -505,7 +506,7 @@ if /i "%ACT%"=="boot-mixed" goto :do_boot-mixed
 if /i "%ACT%"=="boot-tun" goto :do_boot-tun
 if /i "%ACT%"=="uninstall" goto :do_uninstall
 call :echoError "未知操作: %ACT%"
-call :echoInfo "用法: restart-mixed / restart-tun / start / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall / kernel / sub"
+call :echoInfo "用法: restart-mixed / restart-tun / start / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall / kernel / sub / winsw"
 set "SUCCESS=1"
 goto :runAction_done
 :do_kernel
@@ -514,6 +515,10 @@ set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_sub
 call :updateSub
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+:do_winsw
+call :downloadWinsw
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_restart_mixed
@@ -596,10 +601,11 @@ echo.
 call :echoColor 90 "  ── 维护 ──"
 set "ML=%ESC%[96m  7 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
 set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  9 - 更新 WinSW%ESC%[0m"                                            & call echo %%ML%%
 echo.
 set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
-choice /c 123456780 /n /m "请选择操作: "
+choice /c 1234567890 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 if "!CHOICE!"=="1" goto :menu_restart-mixed
 if "!CHOICE!"=="2" goto :menu_restart-tun
@@ -609,7 +615,8 @@ if "!CHOICE!"=="5" goto :menu_boot-tun
 if "!CHOICE!"=="6" goto :menu_uninstall
 if "!CHOICE!"=="7" goto :menu_kernel
 if "!CHOICE!"=="8" goto :menu_sub
-if "!CHOICE!"=="9" goto :menu
+if "!CHOICE!"=="9" goto :menu_winsw
+if "!CHOICE!"=="10" goto :menu
 call :echoError "无效选项"
 goto :menu
 :menu_restart-mixed
@@ -635,4 +642,7 @@ call :runAction "kernel"
 goto :menu
 :menu_sub
 call :runAction "sub"
+goto :menu
+:menu_winsw
+call :runAction "winsw"
 goto :menu
