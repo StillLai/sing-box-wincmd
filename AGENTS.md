@@ -18,6 +18,12 @@ Windows 平台的 sing-box 代理管理工具，通过 WinSW (Windows Service Wr
 - WinSW 自动从 GitHub 下载（使用 PROXY_PREFIX 代理）。
 - `sing-box-service.exe` 和 `sing-box-service.xml` 在 `service/` 目录下，运行时生成/下载，不提交 git。
 
+### 文档自动进化
+- **改动影响约束/架构时，必须同步更新本文档** — 不得让代码与文档不一致。
+- **改动影响用户操作/目录结构时，必须同步更新 `README.md`** — 不得让用户看到过时的用法。
+- 更新时机：每次代码提交前，检查 AGENTS.md 和 README.md 是否需要同步。
+- 更新内容：新增约束、删除废弃约束、文件结构变化、命令用法变化、架构变化。
+
 ### 文件结构
 ```
 service/
