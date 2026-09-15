@@ -431,10 +431,12 @@ if !errorlevel! neq 0 exit /b 1
 call :sbRunning
 if !errorlevel! neq 0 goto :startMode_coldstart
 call :echoInfo "正在重启服务..."
+"!WINSW_EXE!" refresh >nul 2>nul
 "!WINSW_EXE!" restart >nul 2>nul
 goto :startMode_check
 :startMode_coldstart
 call :echoInfo "启动 sing-box (%~1 模式)..."
+"!WINSW_EXE!" install >nul 2>nul
 "!WINSW_EXE!" start >nul 2>nul
 :startMode_check
 timeout /t 5 /nobreak >nul 2>nul
