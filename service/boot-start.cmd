@@ -1,16 +1,14 @@
 @echo off
 REM Boot-time launcher for sing-box
-REM Usage: boot-start.cmd <mode>
-REM   mode = mixed | tun
-REM Uses cmd /c start "" to launch sing-box in a new console,
-REM independent of the Task Scheduler Job Object.
+REM Launches sing-box outside Task Scheduler Job Object with no visible window.
+REM Delegates to launch-hidden.ps1 which uses Win32 CreateProcess with
+REM CREATE_BREAKAWAY_FROM_JOB + STARTF_USESHOWWINDOW(SW_HIDE).
 
 setlocal EnableDelayedExpansion
 
 set "MODE=%~1"
 if "!MODE!"=="" set "MODE=mixed"
 
-REM Validate mode
 if /i not "!MODE!"=="mixed" if /i not "!MODE!"=="tun" (
     echo [boot-start] ERROR: invalid mode "!MODE!" >&2
     exit /b 1
@@ -30,9 +28,13 @@ if not exist "!CONFIG!" (
     exit /b 1
 )
 
-REM Launch sing-box in a new console (independent of Task Scheduler Job Object)
-REM Critical: cd to CORE_DIR first so sing-box inherits the correct CWD.
-REM Without this, SYSTEM's CWD defaults to C:\Windows\System32, breaking
-REM relative paths in config (e.g. "path": "dashboard", log file names).
-cmd /c cd /d "!CORE_DIR!" && start "" "!EXE!" run -c "!CONFIG!" -D "!CORE_DIR!"
-exit /b 0
+REM Use -Command with explicit variable assignments to avoid PowerShell
+REM parameter parsing issues (e.g. -D in args being misinterpreted as -Dir).
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$exe='!EXE!'; $args='run -c \"!CONFIG!\" -D \"!CORE_DIR!\"'; $dir='!CORE_DIR!'; & '%~dp0launch-hidden.ps1' -Exe $exe -CmdArgs $args -Dir $dir"
+set "RET=!errorlevel!"
+
+if !RET! neq 0 (
+    echo [boot-start] ERROR: launch-hidden.ps1 failed, exit code !RET! >> "!LOG!" 2>&1
+)
+exit /b !RET!
