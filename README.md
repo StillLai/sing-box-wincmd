@@ -72,6 +72,7 @@ TUN_SUB_URL=https://gist.githubusercontent.com/username/gist_id/raw/filename.jso
 ```cmd
 sing-box-manager.cmd kernel        # 更新内核
 sing-box-manager.cmd sub           # 更新订阅
+sing-box-manager.cmd winsw         # 更新 WinSW
 sing-box-manager.cmd start-mixed   # 启动 Mixed 模式
 sing-box-manager.cmd start-tun     # 启动 TUN 模式
 sing-box-manager.cmd stop          # 停止
