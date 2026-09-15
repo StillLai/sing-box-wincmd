@@ -1,6 +1,6 @@
 param(
     [string]$Exe,
-    [string]$CmdArgs,
+    [string]$Config,
     [string]$Dir
 )
 
@@ -9,6 +9,7 @@ try {
 using System;
 using System.Runtime.InteropServices;
 public class Launcher {
+    // Pack=4: matches Windows SDK STARTUPINFO alignment
     [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode, Pack=4)]
     public struct STARTUPINFO {
         public int cb;
@@ -60,9 +61,11 @@ public class Launcher {
 }
 "@
 } catch {
-    Console.Error.WriteLine("[launch-hidden] Add-Type FAILED: " + $_.Exception.Message)
+    Write-Error "[launch-hidden] Add-Type FAILED: $($_.Exception.Message)"
     exit 1
 }
 
-$result = [Launcher]::Launch($Exe, $CmdArgs, $Dir)
+# Build the args string inside PowerShell to avoid cmd.exe quote escaping issues
+$cmdArgs = "run -c `"$Config`" -D `"$Dir`""
+$result = [Launcher]::Launch($Exe, $cmdArgs, $Dir)
 exit $result
