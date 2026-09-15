@@ -198,13 +198,11 @@ if !EXTRACT_OK! neq 0 (
     goto :restoreKernel
 )
 call :echoSuccess "核心已更新"
-if defined RUNNING_MODE (
-    call :echoInfo "正在重新启动 sing-box..."
-    call :restartBootMode
-    if !errorlevel! neq 0 (
-        call :echoWarn "核心已更新，但重启失败，请手动启动"
-    )
-)
+if not defined RUNNING_MODE goto :updateKernel_norestart
+call :echoInfo "正在重新启动 sing-box..."
+call :restartBootMode
+if !errorlevel! neq 0 call :echoWarn "核心已更新，但重启失败，请手动启动"
+:updateKernel_norestart
 del /f /q "!SINGBOX_EXE!.bak" >nul 2>nul
 exit /b 0
 :writePS1
@@ -311,15 +309,14 @@ call :echoSuccess "订阅配置已更新"
 REM Restart running instance to apply new config
 REM Detect mode BEFORE killing so we know what to restart
 call :sbRunning
-if !errorlevel! equ 0 (
-    call :echoInfo "检测到 sing-box 正在运行，正在重启以应用新配置.."
-    call :restartBootMode
-    if !errorlevel! neq 0 (
-        call :echoWarn "订阅已更新，但重启失败，请手动启动"
-    )
-) else (
-    call :echoInfo "无运行中的实例，新配置将在下次启动时生效"
-)
+if !errorlevel! neq 0 goto :updateSub_notrunning
+call :echoInfo "检测到 sing-box 正在运行，正在重启以应用新配置.."
+call :restartBootMode
+if !errorlevel! neq 0 call :echoWarn "订阅已更新，但重启失败，请手动启动"
+goto :updateSub_done
+:updateSub_notrunning
+call :echoInfo "无运行中的实例，新配置将在下次启动时生效"
+:updateSub_done
 exit /b 0
 :subRestoreAndExit
 del /f /q "%MIXED_FILE%.tmp" "%TUN_FILE%.tmp" >nul 2>nul
