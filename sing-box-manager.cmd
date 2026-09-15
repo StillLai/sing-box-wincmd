@@ -414,7 +414,8 @@ if /i "%~1"=="tun" (
 )
 call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
-call :updateWinswXml %~1
+call :detectBootMode
+if /i not "%~1"=="!BOOT_MODE_VAR!" call :updateWinswXml %~1
 call :sbRunning
 if !errorlevel! neq 0 goto :startMode_skipstop
 "!WINSW_EXE!" stop >nul 2>nul

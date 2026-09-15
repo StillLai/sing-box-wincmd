@@ -5,6 +5,11 @@ service/core/
 service/sing-box-service.exe
 service/sing-box-service.xml
 
+# WinSW runtime logs
+service/sing-box-service.err.log
+service/sing-box-service.out.log
+service/sing-box-service.wrapper.log
+
 # User config (contains private Gist ID)
 config.env
 
