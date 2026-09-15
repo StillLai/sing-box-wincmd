@@ -91,9 +91,11 @@ sing-box-wincmd/
 ├── LICENSE
 ├── README.md
 └── service/
-    ├── sing-box-service.exe  # WinSW 二进制（自动下载，gitignore）
-    ├── sing-box-service.xml  # WinSW 配置（运行时生成，gitignore）
-    └── core/                 # 运行时目录（自动创建，不提交）
+    ├── sing-box-service.exe      # WinSW 二进制（自动下载，gitignore）
+    ├── sing-box-service.xml      # WinSW 配置（从模板复制，gitignore）
+    ├── sing-box-service-mixed.xml # WinSW XML 模板（Mixed 模式）
+    ├── sing-box-service-tun.xml   # WinSW XML 模板（TUN 模式）
+    └── core/                     # 运行时目录（自动创建，不提交）
         ├── sing-box.exe      # sing-box 二进制（自动下载）
         ├── config-mixed.json # Mixed 配置（自动拉取）
         ├── config-tun.json   # TUN 配置（自动拉取）
