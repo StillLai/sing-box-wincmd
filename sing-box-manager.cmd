@@ -216,8 +216,10 @@ if !ZSIZE! lss 1000000 (
 call :echoSuccess "下载完成 (!ZSIZE! 字节)"
 
 REM Detect mode BEFORE killing so we know what to restart
+set "RUNNING_MODE="
 call :sbRunning
 if !errorlevel! equ 0 (
+    set "RUNNING_MODE=1"
     call :echoInfo "检测到 sing-box 正在运行，正在停止..."
     "!WINSW_EXE!" stop >nul 2>nul
     if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
