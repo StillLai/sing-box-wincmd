@@ -1,0 +1,15 @@
+<service>
+  <id>sing-box</id>
+  <name>sing-box</name>
+  <executable>%BASE%\core\sing-box.exe</executable>
+  <arguments>run -c "%BASE%\core\config-tun.json" -D "%BASE%\core"</arguments>
+  <workingdirectory>%BASE%\core</workingdirectory>
+  <startmode>automatic</startmode>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="20 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>2</keepFiles>
+  </log>
+</service>

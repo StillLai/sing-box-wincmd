@@ -348,24 +348,9 @@ exit /b 0
 :updateWinswXml
 set "WINSW_MODE=%~1"
 if not defined WINSW_MODE set "WINSW_MODE=mixed"
-set "WINSW_CONFIG=config-!WINSW_MODE!.json"
-(
-echo ^<service^>
-echo ^<id^>sing-box^</id^>
-echo ^<name^>sing-box^</name^>
-echo ^<executable^>"%%BASE%%\core\sing-box.exe"^</executable^>
-echo ^<arguments^>run -c "%%BASE%%\core\!WINSW_CONFIG!" -D "%%BASE%%\core"^</arguments^>
-echo ^<workingdirectory^>%%BASE%%\core^</workingdirectory^>
-echo ^<startmode^>automatic^</startmode^>
-echo ^<onfailure action="restart" delay="10 sec"/^>
-echo ^<onfailure action="restart" delay="20 sec"/^>
-echo ^<onfailure action="restart" delay="30 sec"/^>
-echo ^<log mode="roll-by-size"^>
-echo ^<sizeThreshold^>10240^</sizeThreshold^>
-echo ^<keepFiles^>2^</keepFiles^>
-echo ^</log^>
-echo ^</service^>
-) > "!WINSW_XML!"
+set "WINSW_SRC=%~dp0service\sing-box-service-!WINSW_MODE!.xml"
+if not exist "!WINSW_SRC!" call :echoError "未找到 !WINSW_SRC!" & exit /b 1
+copy /y "!WINSW_SRC!" "!WINSW_XML!" >nul 2>nul
 exit /b 0
 :installService
 call :downloadWinsw
