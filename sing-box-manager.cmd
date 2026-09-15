@@ -422,9 +422,15 @@ call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
 call :sbRunning
 if !errorlevel! neq 0 goto :startMode_skipstop
+call :echoInfo "正在停止当前服务..."
 "!WINSW_EXE!" stop >nul 2>nul
 if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
-timeout /t 2 /nobreak >nul 2>nul
+set /a "_stopWait=0"
+:startMode_waitstop
+timeout /t 1 /nobreak >nul 2>nul
+set /a "_stopWait+=1"
+call :sbRunning
+if !errorlevel! equ 0 if !_stopWait! lss 10 goto :startMode_waitstop
 :startMode_skipstop
 call :echoInfo "启动 sing-box (%~1 模式)..."
 "!WINSW_EXE!" start >nul 2>nul
