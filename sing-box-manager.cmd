@@ -384,7 +384,7 @@ REM ============================================================================
 if exist "!WINSW_EXE!" exit /b 0
 call :echoInfo "下载 WinSW 服务管理器..."
 set "PS_WINSW=%temp%\sb_winsw.ps1"
-powershell -NoProfile -NoLogo -Command "$r=Invoke-RestMethod '!WINSW_API!'; $v3=$r|Where-Object{$_.tag_name -like 'v3*'}|Select-Object -First 1; $v3.assets|Where-Object{$_.name -eq 'WinSW-x64.exe'}|Select-Object -ExpandProperty browser_download_url" > "!PS_WINSW!"
+powershell -NoProfile -NoLogo -Command "$r=Invoke-RestMethod '!WINSW_API!'; $v3=$r|Where-Object{$_.tag_name -like 'v3*'}|Select-Object -First 1; $v3.assets|Where-Object{$_.name -eq 'WinSW-x64.exe'}|Select-Object -ExpandProperty browser_download_url" > "!PS_WINSW!" 2>nul
 set "WINSW_URL="
 for /f "delims=" %%u in ('type "!PS_WINSW!"') do set "WINSW_URL=%%u"
 del /f /q "!PS_WINSW!" >nul 2>nul
@@ -502,14 +502,15 @@ call :echoSuccess "sing-box (%~1 模式) 已启动"
 exit /b 0
 :startMode_fail
 call :echoError "启动失败"
-if /i "%~1"=="tun" (
-    call :updateWinswXml mixed
-    "!WINSW_EXE!" start >nul 2>nul
-    timeout /t 5 /nobreak >nul 2>nul
-    call :sbRunning
-    if !errorlevel! equ 0 call :echoWarn "已回退到 Mixed 模式"
-)
-exit /b 1
+if /i not "%~1"=="tun" exit /b 1
+call :echoInfo "TUN 启动失败，尝试回退到 Mixed 模式..."
+call :updateWinswXml mixed
+"!WINSW_EXE!" start >nul 2>nul
+timeout /t 5 /nobreak >nul 2>nul
+call :sbRunning
+if !errorlevel! neq 0 exit /b 1
+call :echoWarn "已回退到 Mixed 模式"
+exit /b 0
 :startMode_notun
 call :echoError "未找到 config-tun.json，请先更新订阅"
 exit /b 1
