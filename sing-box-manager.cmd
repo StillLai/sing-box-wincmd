@@ -498,17 +498,15 @@ if "!BOOT_MODE!"=="未注册" ( call :echoColor 90 "开机自启   未注册" )
 if "!BOOT_MODE!"=="Mixed" ( call :echoColor 96 "开机自启   Mixed 模式" )
 if "!BOOT_MODE!"=="TUN" ( call :echoColor 96 "开机自启   TUN 模式" )
 sc query sing-box 2>nul | findstr /i "RUNNING" >nul 2>nul
-if !errorlevel! equ 0 (
-    set "RUN_MODE="
-    if exist "%temp%\sb_running_mode" set /p RUN_MODE=<"%temp%\sb_running_mode"
-    if defined RUN_MODE (
-        if /i "!RUN_MODE!"=="tun" ( call :echoColor 92 "当前运行:   TUN 模式" )
-        if /i "!RUN_MODE!"=="mixed" ( call :echoColor 92 "当前运行:   Mixed 模式" )
-    ) else (
-        if "!BOOT_MODE_VAR!"=="tun" ( call :echoColor 92 "当前运行:   TUN 模式" )
-        if "!BOOT_MODE_VAR!"=="mixed" ( call :echoColor 92 "当前运行:   Mixed 模式" )
-    )
-) else ( call :echoColor 93 "当前运行:   已停止" )
+if !errorlevel! neq 0 goto :showStatus_stopped
+set "RUN_MODE="
+if exist "%temp%\sb_running_mode" set /p RUN_MODE=<"%temp%\sb_running_mode"
+if not defined RUN_MODE set "RUN_MODE=!BOOT_MODE_VAR!"
+if /i "!RUN_MODE!"=="tun" ( call :echoColor 92 "当前运行:   TUN 模式" )
+if /i "!RUN_MODE!"=="mixed" ( call :echoColor 92 "当前运行:   Mixed 模式" )
+goto :eof
+:showStatus_stopped
+call :echoColor 93 "当前运行:   已停止"
 goto :eof
 REM ============================================================================
 REM Execute specified action
