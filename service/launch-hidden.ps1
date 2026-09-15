@@ -42,8 +42,9 @@ public class Launcher {
         si.wShowWindow = 0;      // SW_HIDE
         var pi = new PROCESS_INFORMATION();
         // CREATE_BREAKAWAY_FROM_JOB (0x01000000): escape Task Scheduler Job Object
-        // CREATE_NEW_CONSOLE     (0x00000010): own console, not inheriting parent's
-        uint flags = 0x01000010;
+        // CREATE_NO_WINDOW         (0x08000000): no new console window allocated
+        // Process inherits parent's hidden console — sing-box gets valid stdin/stdout.
+        uint flags = 0x09000000;
         // Use lpApplicationName for exe path (handles spaces in path).
         // lpCommandLine must still include quoted exe as argv[0].
         bool ok = CreateProcess(exe, "\"" + exe + "\" " + args,
