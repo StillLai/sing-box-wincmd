@@ -464,8 +464,13 @@ if !errorlevel! equ 0 (
     if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
     "!WINSW_EXE!" uninstall >nul 2>nul
-    if !errorlevel! neq 0 ( call :echoError "服务卸载失败" & set "HAD_ERROR=1" )
-    else ( call :echoSuccess "sing-box 服务已卸载" )
+    if !errorlevel! neq 0 goto :uninstallTask_fail
+    call :echoSuccess "sing-box 服务已卸载"
+    goto :uninstallTask_done
+    :uninstallTask_fail
+    call :echoError "服务卸载失败"
+    set "HAD_ERROR=1"
+    :uninstallTask_done
 ) else ( call :echoWarn "sing-box 服务未安装" )
 call :taskExists "sing-box-mixed" && schtasks /delete /tn "sing-box-mixed" /f >nul 2>nul
 call :taskExists "sing-box-tun" && schtasks /delete /tn "sing-box-tun" /f >nul 2>nul
