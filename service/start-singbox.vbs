@@ -177,7 +177,10 @@ Const WAIT_AFTER_LAUNCH = 8000
 Const WAIT_BETWEEN_RETRIES = 5000
 
 Dim cmdLine
-cmdLine = "cmd.exe /c start /b """" """ & exePath & """ run -c """ & configPath & """ -D """ & coreDir & """"
+Dim bootLauncher
+bootLauncher = fso.BuildPath(scriptDir, "boot-start.cmd")
+cmdLine = "cmd.exe /c """ & bootLauncher & """ " & mode
+WshShell.CurrentDirectory = scriptDir
 
 Dim launched, attempt, attemptStart
 launched = False

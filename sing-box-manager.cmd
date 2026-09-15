@@ -428,7 +428,7 @@ if not exist "%~dp0service\start-singbox.vbs" (
 set "CREATE_ERR=0"
 call :taskExists "%TASK_MIXED%" || (
     call :echoInfo "创建 %TASK_MIXED% 计划任务 (SYSTEM)..."
-    schtasks /create /tn "%TASK_MIXED%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" mixed" /sc onstart /ru SYSTEM /f 2>"%temp%\schtasks_err.txt"
+    schtasks /create /tn "%TASK_MIXED%" /tr "cmd.exe /c \"%~dp0service\boot-start.cmd\" mixed" /sc onstart /ru SYSTEM /f 2>"%temp%\schtasks_err.txt"
     if !errorlevel! neq 0 (
         set "CREATE_ERR=1"
         call :echoError "创建 %TASK_MIXED% 失败:"
@@ -440,7 +440,7 @@ call :taskExists "%TASK_MIXED%" || (
 )
 call :taskExists "%TASK_TUN%" || (
     call :echoInfo "创建 %TASK_TUN% 计划任务 (SYSTEM)..."
-    schtasks /create /tn "%TASK_TUN%" /tr "wscript.exe \"%~dp0service\start-singbox.vbs\" tun" /sc onstart /ru SYSTEM /f 2>"%temp%\schtasks_err.txt"
+    schtasks /create /tn "%TASK_TUN%" /tr "cmd.exe /c \"%~dp0service\boot-start.cmd\" tun" /sc onstart /ru SYSTEM /f 2>"%temp%\schtasks_err.txt"
     if !errorlevel! neq 0 (
         set "CREATE_ERR=1"
         call :echoError "创建 %TASK_TUN% 失败:"
