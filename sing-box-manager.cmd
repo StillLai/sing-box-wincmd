@@ -496,12 +496,14 @@ set "SUCCESS=1"
 if /i "%ACT%"=="kernel" goto :do_kernel
 if /i "%ACT%"=="sub" goto :do_sub
 if /i "%ACT%"=="start" goto :do_start
+if /i "%ACT%"=="start-mixed" goto :do_start
+if /i "%ACT%"=="start-tun" goto :do_start
 if /i "%ACT%"=="stop" goto :do_stop
 if /i "%ACT%"=="boot-mixed" goto :do_boot-mixed
 if /i "%ACT%"=="boot-tun" goto :do_boot-tun
 if /i "%ACT%"=="uninstall" goto :do_uninstall
 call :echoError "未知操作: %ACT%"
-call :echoInfo "用法: kernel / sub / start / stop / boot-mixed / boot-tun / uninstall"
+call :echoInfo "用法: kernel / sub / start / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall"
 set "SUCCESS=1"
 goto :runAction_done
 :do_kernel
