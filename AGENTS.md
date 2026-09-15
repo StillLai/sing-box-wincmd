@@ -13,6 +13,9 @@ Windows 平台的 sing-box 代理管理工具，通过 WinSW (Windows Service Wr
 4. **失败自动重启** — WinSW `<onfailure>` 配置 3 次重启（10s/20s/30s）。
 5. **优雅停止** — WinSW `stop` 命令发送 Ctrl+C 信号，sing-box 可优雅退出。
 
+### CMD 陷阱
+- **`exit /b` 在 `(...)` 括号块内会终止整个脚本**，而非仅从子函数返回。所有 `exit /b` 必须在括号块外，或使用 `goto :label` 跳转到块外的退出点。
+
 ### 管理脚本
 - 模式切换通过修改 XML `<arguments>` + 重启服务实现。
 - WinSW 自动从 GitHub 下载（使用 PROXY_PREFIX 代理）。
