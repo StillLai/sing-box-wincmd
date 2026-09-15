@@ -495,7 +495,7 @@ sc query sing-box 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! equ 0 (
     if "!BOOT_MODE_VAR!"=="tun" ( call :echoColor 92 "当前配置:   TUN 模式" )
     if "!BOOT_MODE_VAR!"=="mixed" ( call :echoColor 92 "当前配置:   Mixed 模式" )
-) else ( call :echoColor 93 "当前运行:   已停止" )
+) else ( call :echoColor 93 "当前配置:   已停止" )
 goto :eof
 REM ============================================================================
 REM Execute specified action
