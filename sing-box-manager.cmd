@@ -149,17 +149,9 @@ set "VERSION="
 if exist "%temp%\sb_ver.txt" set /p VERSION=<"%temp%\sb_ver.txt"
 del /f /q "%temp%\sb_ver.txt" >nul 2>nul
 
-if !PS_EXIT! neq 0 (
-    call :echoError "GitHub API 请求失败，请检查网络连接或代理设置"
-    del /f /q "%temp%\sb_asset.txt" >nul 2>nul
-    exit /b 1
-)
+if !PS_EXIT! neq 0 call :echoError "GitHub API 请求失败，请检查网络连接或代理设置" & del /f /q "%temp%\sb_asset.txt" >nul 2>nul & exit /b 1
 echo !VERSION! | findstr /b /c:"v" >nul 2>nul
-if !errorlevel! neq 0 (
-    call :echoError "获取版本失败，请检查网络连接或代理设置"
-    del /f /q "%temp%\sb_asset.txt" >nul 2>nul
-    exit /b 1
-)
+if !errorlevel! neq 0 call :echoError "获取版本失败，请检查网络连接或代理设置" & del /f /q "%temp%\sb_asset.txt" >nul 2>nul & exit /b 1
 call :echoSuccess "最新版本: !VERSION!"
 
 REM Check if already at latest version
@@ -170,16 +162,16 @@ if exist "!SINGBOX_EXE!" (
     )
 )
 set "VERSION_NUM=!VERSION:~1!"
-if defined CURRENT_VERSION (
-    if "!CURRENT_VERSION!"=="!VERSION_NUM!" (
-        call :echoSuccess "当前已是最新版本 (!VERSION!)，无需更新"
-        del /f /q "%temp%\sb_asset.txt" >nul 2>nul
-        exit /b 0
-    )
-    call :echoInfo "当前版本: !CURRENT_VERSION!，准备更新..."
-) else (
-    call :echoInfo "未检测到已安装的核心，将全新安装..."
-)
+if not defined CURRENT_VERSION goto :updateKernel_fresh
+if not "!CURRENT_VERSION!"=="!VERSION_NUM!" goto :updateKernel_newer
+call :echoSuccess "当前已是最新版本 (!VERSION!)，无需更新"
+del /f /q "%temp%\sb_asset.txt" >nul 2>nul
+exit /b 0
+:updateKernel_newer
+call :echoInfo "当前版本: !CURRENT_VERSION!，准备更新..."
+:updateKernel_fresh
+call :echoInfo "未检测到已安装的核心，将全新安装..."
+:updateKernel_continue
 
 if exist "!SINGBOX_EXE!" copy /y "!SINGBOX_EXE!" "!SINGBOX_EXE!.bak" >nul 2>nul
 
@@ -396,12 +388,12 @@ powershell -NoProfile -NoLogo -Command "$r=Invoke-RestMethod '!WINSW_API!'; $v3=
 set "WINSW_URL="
 for /f "delims=" %%u in ('type "!PS_WINSW!"') do set "WINSW_URL=%%u"
 del /f /q "!PS_WINSW!" >nul 2>nul
-if not defined WINSW_URL ( call :echoError "无法获取 WinSW 下载地址" & exit /b 1 )
+if not defined WINSW_URL call :echoError "无法获取 WinSW 下载地址" & exit /b 1
 set "DL=!WINSW_URL!"
 if defined PROXY_PREFIX set "DL=!PROXY_PREFIX!!WINSW_URL!"
 call :echoInfo "下载: !DL!"
 curl -L -o "!WINSW_EXE!" "!DL!" --retry 3 --connect-timeout 30 -#
-if !errorlevel! neq 0 ( call :echoError "WinSW 下载失败" & del /f /q "!WINSW_EXE!" >nul 2>nul & exit /b 1 )
+if !errorlevel! neq 0 call :echoError "WinSW 下载失败" & del /f /q "!WINSW_EXE!" >nul 2>nul & exit /b 1
 call :echoSuccess "WinSW 下载完成"
 exit /b 0
 
@@ -434,12 +426,12 @@ if !errorlevel! neq 0 exit /b 1
 if not exist "!WINSW_XML!" call :updateWinswXml mixed
 call :echoInfo "安装 sing-box 服务..."
 "!WINSW_EXE!" install >nul 2>nul
-if !errorlevel! neq 0 ( call :echoError "服务安装失败" & exit /b 1 )
+if !errorlevel! neq 0 call :echoError "服务安装失败" & exit /b 1
 call :echoSuccess "sing-box 服务已安装"
 exit /b 0
 
 :ensureTasks
-if not exist "!SINGBOX_EXE!" ( call :echoError "未找到 sing-box.exe，请先更新核心" & exit /b 1 )
+if not exist "!SINGBOX_EXE!" call :echoError "未找到 sing-box.exe，请先更新核心" & exit /b 1
 sc query sing-box >nul 2>nul
 if !errorlevel! equ 0 exit /b 0
 call :installService
@@ -451,26 +443,35 @@ REM   %1 = "mixed" or "tun"
 REM ============================================================================
 :switchBoot
 if /i "%~1"=="tun" (
-    if not exist "service\core\config-tun.json" ( call :echoError "未找到 config-tun.json" & exit /b 1 )
+    if not exist "service\core\config-tun.json" goto :switchBoot_notun
 ) else (
-    if not exist "service\core\config-mixed.json" ( call :echoError "未找到 config-mixed.json" & exit /b 1 )
+    if not exist "service\core\config-mixed.json" goto :switchBoot_nomixed
 )
 call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
 call :updateWinswXml %~1
 call :startMode "%~1"
 exit /b !errorlevel!
+:switchBoot_notun
+call :echoError "未找到 config-tun.json，请先更新订阅"
+exit /b 1
+:switchBoot_nomixed
+call :echoError "未找到 config-mixed.json，请先更新订阅"
+exit /b 1
 
 REM ============================================================================
 REM Stop all sing-box processes
 REM ============================================================================
 :stopSingbox
-call :sbRunning "config"
-if !errorlevel! neq 0 ( call :echoWarn "sing-box 未在运行" & exit /b 0 )
+call :sbRunning
+if !errorlevel! neq 0 goto :stopSingbox_notrunning
 call :echoInfo "停止 sing-box..."
 "!WINSW_EXE!" stop >nul 2>nul
 if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
 call :echoSuccess "sing-box 已停止"
+exit /b 0
+:stopSingbox_notrunning
+call :echoWarn "sing-box 未在运行"
 exit /b 0
 
 REM ============================================================================
@@ -479,14 +480,14 @@ REM   %1 = "mixed" or "tun"
 REM ============================================================================
 :startMode
 if /i "%~1"=="tun" (
-    if not exist "service\core\config-tun.json" ( call :echoError "未找到 config-tun.json" & exit /b 1 )
+    if not exist "service\core\config-tun.json" goto :startMode_notun
 ) else (
-    if not exist "service\core\config-mixed.json" ( call :echoError "未找到 config-mixed.json" & exit /b 1 )
+    if not exist "service\core\config-mixed.json" goto :startMode_nomixed
 )
 call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
 call :updateWinswXml %~1
-call :sbRunning "config"
+call :sbRunning
 if !errorlevel! equ 0 (
     "!WINSW_EXE!" stop >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
@@ -494,22 +495,27 @@ if !errorlevel! equ 0 (
 call :echoInfo "启动 sing-box (%~1 模式)..."
 "!WINSW_EXE!" start >nul 2>nul
 timeout /t 5 /nobreak >nul 2>nul
-call :sbRunning "config"
-if !errorlevel! equ 0 (
-    if /i "%~1"=="tun" call :waitTunReady
-    call :echoSuccess "sing-box (%~1 模式) 已启动"
-    exit /b 0
-) else (
-    call :echoError "启动失败"
-    if /i "%~1"=="tun" (
-        call :updateWinswXml mixed
-        "!WINSW_EXE!" start >nul 2>nul
-        timeout /t 5 /nobreak >nul 2>nul
-        call :sbRunning "config"
-        if !errorlevel! equ 0 ( call :echoWarn "已回退到 Mixed 模式" )
-    )
-    exit /b 1
+call :sbRunning
+if !errorlevel! neq 0 goto :startMode_fail
+if /i "%~1"=="tun" call :waitTunReady
+call :echoSuccess "sing-box (%~1 模式) 已启动"
+exit /b 0
+:startMode_fail
+call :echoError "启动失败"
+if /i "%~1"=="tun" (
+    call :updateWinswXml mixed
+    "!WINSW_EXE!" start >nul 2>nul
+    timeout /t 5 /nobreak >nul 2>nul
+    call :sbRunning
+    if !errorlevel! equ 0 call :echoWarn "已回退到 Mixed 模式"
 )
+exit /b 1
+:startMode_notun
+call :echoError "未找到 config-tun.json，请先更新订阅"
+exit /b 1
+:startMode_nomixed
+call :echoError "未找到 config-mixed.json，请先更新订阅"
+exit /b 1
 
 REM ============================================================================
 REM Uninstall WinSW service (and clean up legacy scheduled tasks)
