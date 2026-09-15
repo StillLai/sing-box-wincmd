@@ -192,12 +192,12 @@ if !EXTRACT_OK! neq 0 (
     call :echoError "解压失败"
     goto :restoreKernel
 )
-call :echoSuccess "核心已更新
+call :echoSuccess "核心已更新"
 if defined RUNNING_MODE (
     call :echoInfo "正在重新启动 sing-box..."
     call :restartBootMode
     if !errorlevel! neq 0 (
-        call :echoWarn "核心已更新，但重启失败，请手动启动
+        call :echoWarn "核心已更新，但重启失败，请手动启动"
     )
 )
 del /f /q "!SINGBOX_EXE!.bak" >nul 2>nul
@@ -218,7 +218,7 @@ if exist "!SINGBOX_EXE!.bak" (
     if !errorlevel! equ 0 (
         call :echoInfo "已恢复旧核心"
     ) else (
-        call :echoError "恢复旧核心失败
+        call :echoError "恢复旧核心失败"
     )
 ) else (
     call :echoWarn "未找到备份文件，无法恢复"
@@ -233,7 +233,7 @@ set /a "WAIT_COUNT=0"
 :waitTunLoop
 curl -s --max-time 3 -o nul "https://cp.cloudflare.com" >nul 2>nul
 if !errorlevel! equ 0 (
-    call :echoSuccess "TUN 网络已就绪
+    call :echoSuccess "TUN 网络已就绪"
     goto :eof
 )
 set /a "WAIT_COUNT+=1"
@@ -302,7 +302,7 @@ move /y "%TUN_FILE%.tmp" "%TUN_FILE%" >nul 2>nul
 if not exist "%MIXED_FILE%" goto :subRestoreAndExit
 if not exist "%TUN_FILE%" goto :subRestoreAndExit
 del /f /q "%MIXED_FILE%.bak" "%TUN_FILE%.bak" >nul 2>nul
-call :echoSuccess "订阅配置已更新
+call :echoSuccess "订阅配置已更新"
 REM Restart running instance to apply new config
 REM Detect mode BEFORE killing so we know what to restart
 call :sbRunning
@@ -313,7 +313,7 @@ if !errorlevel! equ 0 (
     timeout /t 2 /nobreak >nul 2>nul
     call :restartBootMode
     if !errorlevel! neq 0 (
-        call :echoWarn "订阅已更新，但重启失败，请手动启动
+        call :echoWarn "订阅已更新，但重启失败，请手动启动"
     )
 ) else (
     call :echoInfo "无运行中的实例，新配置将在下次启动时生效"
@@ -374,10 +374,10 @@ if not exist "!WINSW_XML!" call :updateWinswXml mixed
 call :echoInfo "安装 sing-box 服务..."
 "!WINSW_EXE!" install >nul 2>nul
 if !errorlevel! neq 0 call :echoError "服务安装失败" & exit /b 1
-call :echoSuccess "sing-box 服务已安装
+call :echoSuccess "sing-box 服务已安装"
 exit /b 0
 :ensureTasks
-if not exist "!SINGBOX_EXE!" call :echoError "未找到 sing-box.exe，请先更新核心 & exit /b 1
+if not exist "!SINGBOX_EXE!" call :echoError "未找到 sing-box.exe，请先更新核心" & exit /b 1
 sc query sing-box >nul 2>nul
 if !errorlevel! equ 0 exit /b 0
 call :installService
@@ -398,10 +398,10 @@ call :updateWinswXml %~1
 call :startMode "%~1"
 exit /b !errorlevel!
 :switchBoot_notun
-call :echoError "未找到 config-tun.json，请先更新订阅
+call :echoError "未找到 config-tun.json，请先更新订阅"
 exit /b 1
 :switchBoot_nomixed
-call :echoError "未找到 config-mixed.json，请先更新订阅
+call :echoError "未找到 config-mixed.json，请先更新订阅"
 exit /b 1
 REM ============================================================================
 REM Stop all sing-box processes
@@ -412,7 +412,7 @@ if !errorlevel! neq 0 goto :stopSingbox_notrunning
 call :echoInfo "停止 sing-box..."
 "!WINSW_EXE!" stop >nul 2>nul
 if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
-call :echoSuccess "sing-box 已停止
+call :echoSuccess "sing-box 已停止"
 exit /b 0
 :stopSingbox_notrunning
 call :echoWarn "sing-box 未在运行"
@@ -442,7 +442,7 @@ timeout /t 5 /nobreak >nul 2>nul
 call :sbRunning
 if !errorlevel! neq 0 goto :startMode_fail
 if /i "%~1"=="tun" call :waitTunReady
-call :echoSuccess "sing-box (%~1 模式) 已启动
+call :echoSuccess "sing-box (%~1 模式) 已启动"
 exit /b 0
 :startMode_fail
 call :echoError "启动失败"
@@ -456,10 +456,10 @@ if !errorlevel! neq 0 exit /b 1
 call :echoWarn "已回退到 Mixed 模式"
 exit /b 0
 :startMode_notun
-call :echoError "未找到 config-tun.json，请先更新订阅
+call :echoError "未找到 config-tun.json，请先更新订阅"
 exit /b 1
 :startMode_nomixed
-call :echoError "未找到 config-mixed.json，请先更新订阅
+call :echoError "未找到 config-mixed.json，请先更新订阅"
 exit /b 1
 REM ============================================================================
 REM Uninstall WinSW service (and clean up legacy scheduled tasks)
@@ -473,37 +473,37 @@ if !errorlevel! equ 0 (
     timeout /t 2 /nobreak >nul 2>nul
     "!WINSW_EXE!" uninstall >nul 2>nul
     if !errorlevel! neq 0 ( call :echoError "服务卸载失败" & set "HAD_ERROR=1" )
-    else ( call :echoSuccess "sing-box 服务已卸载 )
-) else ( call :echoWarn "sing-box 服务未安装 )
+    else ( call :echoSuccess "sing-box 服务已卸载" )
+) else ( call :echoWarn "sing-box 服务未安装" )
 call :taskExists "sing-box-mixed" && schtasks /delete /tn "sing-box-mixed" /f >nul 2>nul
 call :taskExists "sing-box-tun" && schtasks /delete /tn "sing-box-tun" /f >nul 2>nul
 exit /b !HAD_ERROR!
 REM ============================================================================
 :showStatus
 REM Determine sing-box version
-set "SB_VERSION=未安装
+set "SB_VERSION=未安装"
 if exist "!SINGBOX_EXE!" (
     for /f "tokens=3" %%v in ('"!SINGBOX_EXE!" version 2^>nul') do (
-        if "!SB_VERSION!"=="未安装 set "SB_VERSION=%%v"
+        if "!SB_VERSION!"=="未安装" set "SB_VERSION=%%v"
     )
     if "!SB_VERSION!"=="" set "SB_VERSION=未知"
 )
 call :echoColor 96 "sing-box:   !SB_VERSION!"
-set "BOOT_MODE=未注册
+set "BOOT_MODE=未注册"
 sc query sing-box >nul 2>nul
 if !errorlevel! equ 0 (
     call :detectBootMode
     if "!BOOT_MODE_VAR!"=="tun" set "BOOT_MODE=TUN"
     if "!BOOT_MODE_VAR!"=="mixed" set "BOOT_MODE=Mixed"
 )
-if "!BOOT_MODE!"=="未注册 ( call :echoColor 90 "开机自启   未注册 )
+if "!BOOT_MODE!"=="未注册" ( call :echoColor 90 "开机自启   未注册" )
 if "!BOOT_MODE!"=="Mixed" ( call :echoColor 96 "开机自启   Mixed 模式" )
 if "!BOOT_MODE!"=="TUN" ( call :echoColor 96 "开机自启   TUN 模式" )
 sc query sing-box 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! equ 0 (
     if "!BOOT_MODE_VAR!"=="tun" ( call :echoColor 92 "当前运行:   TUN 模式" )
     if "!BOOT_MODE_VAR!"=="mixed" ( call :echoColor 92 "当前运行:   Mixed 模式" )
-) else ( call :echoColor 93 "当前运行:   已停止 )
+) else ( call :echoColor 93 "当前运行:   已停止" )
 goto :eof
 REM ============================================================================
 REM Execute specified action
