@@ -488,10 +488,11 @@ call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
 call :updateWinswXml %~1
 call :sbRunning
-if !errorlevel! equ 0 (
-    "!WINSW_EXE!" stop >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
-)
+if !errorlevel! neq 0 goto :startMode_skipstop
+"!WINSW_EXE!" stop >nul 2>nul
+if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
+timeout /t 2 /nobreak >nul 2>nul
+:startMode_skipstop
 call :echoInfo "启动 sing-box (%~1 模式)..."
 "!WINSW_EXE!" start >nul 2>nul
 timeout /t 5 /nobreak >nul 2>nul
@@ -526,6 +527,7 @@ set "HAD_ERROR=0"
 sc query sing-box >nul 2>nul
 if !errorlevel! equ 0 (
     "!WINSW_EXE!" stop >nul 2>nul
+    if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
     timeout /t 2 /nobreak >nul 2>nul
     "!WINSW_EXE!" uninstall >nul 2>nul
     if !errorlevel! neq 0 ( call :echoError "服务卸载失败" & set "HAD_ERROR=1" )
@@ -559,7 +561,6 @@ if "!BOOT_MODE!"=="TUN" ( call :echoColor 96 "开机自启:   TUN 模式" )
 
 sc query sing-box 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! equ 0 (
-    call :detectBootMode
     if "!BOOT_MODE_VAR!"=="tun" ( call :echoColor 92 "当前运行:   TUN 模式" )
     if "!BOOT_MODE_VAR!"=="mixed" ( call :echoColor 92 "当前运行:   Mixed 模式" )
 ) else ( call :echoColor 93 "当前运行:   已停止" )
@@ -654,7 +655,7 @@ set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                    
 echo.
 set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
-choice /c 1234567890 /n /m "请选择操作: "
+choice /c 123456780 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 
 if "!CHOICE!"=="1" (
@@ -681,7 +682,7 @@ if "!CHOICE!"=="1" (
 ) else if "!CHOICE!"=="8" (
     call :runAction "sub"
     goto :menu
-) else if "!CHOICE!"=="10" (
+) else if "!CHOICE!"=="9" (
     goto :menu
 ) else (
     call :echoError "无效选项"
