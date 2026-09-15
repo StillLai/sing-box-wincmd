@@ -3,7 +3,7 @@ chcp 65001 >nul 2>nul
 REM Check admin privilege, auto-elevate if needed
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Requesting admin privilege...
+    echo 正在请求管理员权限...
     if "%*"=="" (
         powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
     ) else (
@@ -22,7 +22,8 @@ set "CONFIG_FILE=%~dp0config.env"
 if not exist "%CONFIG_FILE%" (
     echo [错误] 未找到 config.env，请复制 config.env.example 为 config.env 并填入你的配置。
     echo         copy config.env.example config.env
-    pause
+    echo 请按任意键退出...
+    pause >nul
     exit /b 1
 )
 for /f "usebackq tokens=1,* delims==" %%a in ("%CONFIG_FILE%") do (
@@ -36,12 +37,14 @@ REM If not set or empty, downloads will go directly to GitHub
 REM Validate required config
 if not defined MIXED_SUB_URL (
     echo [错误] config.env 中未设置 MIXED_SUB_URL，请检查配置。
-    pause
+    echo 请按任意键退出...
+    pause >nul
     exit /b 1
 )
 if not defined TUN_SUB_URL (
     echo [错误] config.env 中未设置 TUN_SUB_URL，请检查配置。
-    pause
+    echo 请按任意键退出...
+    pause >nul
     exit /b 1
 )
 REM Ensure PROXY_PREFIX ends with / if set
@@ -574,7 +577,8 @@ if !SUCCESS!==0 (
     call :echoColor 91 "========================================"
 )
 echo.
-pause
+echo 请按任意键返回菜单...
+pause >nul
 exit /b !SUCCESS!
 REM ============================================================================
 REM Main
