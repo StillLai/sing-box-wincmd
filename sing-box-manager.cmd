@@ -169,6 +169,7 @@ del /f /q "%temp%\sb_asset.txt" >nul 2>nul
 exit /b 0
 :updateKernel_newer
 call :echoInfo "当前版本: !CURRENT_VERSION!，准备更新..."
+goto :updateKernel_continue
 :updateKernel_fresh
 call :echoInfo "未检测到已安装的核心，将全新安装..."
 :updateKernel_continue
@@ -682,33 +683,40 @@ echo.
 choice /c 123456780 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 
-if "!CHOICE!"=="1" (
-    call :runAction "start-mixed"
-    goto :menu
-) else if "!CHOICE!"=="2" (
-    call :runAction "start-tun"
-    goto :menu
-) else if "!CHOICE!"=="3" (
-    call :runAction "stop"
-    goto :menu
-) else if "!CHOICE!"=="4" (
-    call :runAction "boot-mixed"
-    goto :menu
-) else if "!CHOICE!"=="5" (
-    call :runAction "boot-tun"
-    goto :menu
-) else if "!CHOICE!"=="6" (
-    call :runAction "uninstall"
-    goto :menu
-) else if "!CHOICE!"=="7" (
-    call :runAction "kernel"
-    goto :menu
-) else if "!CHOICE!"=="8" (
-    call :runAction "sub"
-    goto :menu
-) else if "!CHOICE!"=="9" (
-    goto :menu
-) else (
-    call :echoError "无效选项"
-    goto :menu
+if "!CHOICE!"=="1" goto :menu_start-mixed
+if "!CHOICE!"=="2" goto :menu_start-tun
+if "!CHOICE!"=="3" goto :menu_stop
+if "!CHOICE!"=="4" goto :menu_boot-mixed
+if "!CHOICE!"=="5" goto :menu_boot-tun
+if "!CHOICE!"=="6" goto :menu_uninstall
+if "!CHOICE!"=="7" goto :menu_kernel
+if "!CHOICE!"=="8" goto :menu_sub
+if "!CHOICE!"=="9" goto :menu
+call :echoError "无效选项"
+goto :menu
+
+:menu_start-mixed
+call :runAction "start-mixed"
+goto :menu
+:menu_start-tun
+call :runAction "start-tun"
+goto :menu
+:menu_stop
+call :runAction "stop"
+goto :menu
+:menu_boot-mixed
+call :runAction "boot-mixed"
+goto :menu
+:menu_boot-tun
+call :runAction "boot-tun"
+goto :menu
+:menu_uninstall
+call :runAction "uninstall"
+goto :menu
+:menu_kernel
+call :runAction "kernel"
+goto :menu
+:menu_sub
+call :runAction "sub"
+goto :menu
 )
