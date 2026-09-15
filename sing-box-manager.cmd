@@ -353,7 +353,6 @@ if not defined WINSW_MODE set "WINSW_MODE=mixed"
 set "WINSW_SRC=%~dp0service\sing-box-service-!WINSW_MODE!.xml"
 if not exist "!WINSW_SRC!" call :echoError "未找到 !WINSW_SRC!" & exit /b 1
 copy /y "!WINSW_SRC!" "!WINSW_XML!" >nul 2>nul
-findstr "arguments" "!WINSW_XML!" >> "%temp%\sb_debug.log"
 exit /b 0
 :installService
 call :downloadWinsw
