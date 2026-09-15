@@ -65,7 +65,7 @@ TUN_SUB_URL=https://gist.githubusercontent.com/username/gist_id/raw/filename.jso
 首次使用依次选择：
 1. **更新内核** — 下载最新 sing-box 二进制
 2. **更新订阅** — 拉取配置文件
-3. **设置开机自启** — 选择选项 3（Mixed）或 4（TUN），WinSW 会自动下载并注册为 Windows 服务
+3. **设置开机自启** — 选择选项 4（Mixed）或 5（TUN），WinSW 会自动下载并注册为 Windows 服务
 
 之后可通过菜单或命令行参数操作：
 

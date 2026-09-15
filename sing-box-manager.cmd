@@ -580,17 +580,17 @@ set "ML=%ESC%[96m  1 - 启动/重启 sing-box%ESC%[0m"                          
 set "ML=%ESC%[91m  2 - 停止 sing-box%ESC%[0m"                                              & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 设置 ──"
-set "ML=%ESC%[96m  3 - 设置开机自启为 Mixed 模式%ESC%[0m"                                & call echo %%ML%%
-set "ML=%ESC%[96m  4 - 设置开机自启为 TUN 模式%ESC%[0m"                                  & call echo %%ML%%
-set "ML=%ESC%[96m  5 - 关闭开机自启(卸载 WinSW 服务)%ESC%[0m"                          & call echo %%ML%%
+set "ML=%ESC%[96m  4 - 设置开机自启为 Mixed 模式%ESC%[0m"                                & call echo %%ML%%
+set "ML=%ESC%[96m  5 - 设置开机自启为 TUN 模式%ESC%[0m"                                  & call echo %%ML%%
+set "ML=%ESC%[96m  6 - 关闭开机自启(卸载 WinSW 服务)%ESC%[0m"                          & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 维护 ──"
-set "ML=%ESC%[96m  6 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
-set "ML=%ESC%[96m  7 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  7 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
 echo.
 set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
-choice /c 12345670 /n /m "请选择操作: "
+choice /c 12456780 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 if "!CHOICE!"=="1" goto :menu_restart
 if "!CHOICE!"=="2" goto :menu_stop
