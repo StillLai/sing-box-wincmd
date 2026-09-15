@@ -459,19 +459,17 @@ REM ============================================================================
 :uninstallTask
 set "HAD_ERROR=0"
 sc query sing-box >nul 2>nul
-if !errorlevel! equ 0 (
-    "!WINSW_EXE!" stop >nul 2>nul
-    if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
-    "!WINSW_EXE!" uninstall >nul 2>nul
-    if !errorlevel! neq 0 goto :uninstallTask_fail
-    call :echoSuccess "sing-box 服务已卸载"
-    goto :uninstallTask_done
-    :uninstallTask_fail
-    call :echoError "服务卸载失败"
-    set "HAD_ERROR=1"
-    :uninstallTask_done
-) else ( call :echoWarn "sing-box 服务未安装" )
+if !errorlevel! neq 0 goto :uninstallTask_noservice
+"!WINSW_EXE!" stop >nul 2>nul
+if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
+timeout /t 2 /nobreak >nul 2>nul
+"!WINSW_EXE!" uninstall >nul 2>nul
+if !errorlevel! neq 0 call :echoError "服务卸载失败" & set "HAD_ERROR=1" & goto :uninstallTask_cleanup
+call :echoSuccess "sing-box 服务已卸载"
+goto :uninstallTask_cleanup
+:uninstallTask_noservice
+call :echoWarn "sing-box 服务未安装"
+:uninstallTask_cleanup
 call :taskExists "sing-box-mixed" && schtasks /delete /tn "sing-box-mixed" /f >nul 2>nul
 call :taskExists "sing-box-tun" && schtasks /delete /tn "sing-box-tun" /f >nul 2>nul
 exit /b !HAD_ERROR!
