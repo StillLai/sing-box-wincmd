@@ -381,6 +381,12 @@ call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
 call :updateWinswXml %~1
 call :startMode "%~1"
+if !errorlevel! equ 0 exit /b 0
+REM TUN failed — fall back to Mixed
+if /i not "%~1"=="tun" exit /b 1
+call :echoInfo "TUN 启动失败，回退到 Mixed 模式..."
+call :updateWinswXml mixed
+call :startMode "mixed"
 exit /b !errorlevel!
 :switchBoot_notun
 call :echoError "未找到 config-tun.json，请先更新订阅"
@@ -414,8 +420,6 @@ if /i "%~1"=="tun" (
 )
 call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
-call :detectBootMode
-if /i not "%~1"=="!BOOT_MODE_VAR!" call :updateWinswXml %~1
 call :sbRunning
 if !errorlevel! neq 0 goto :startMode_skipstop
 "!WINSW_EXE!" stop >nul 2>nul
@@ -432,15 +436,7 @@ call :echoSuccess "sing-box (%~1 模式) 已启动"
 exit /b 0
 :startMode_fail
 call :echoError "启动失败"
-if /i not "%~1"=="tun" exit /b 1
-call :echoInfo "TUN 启动失败，尝试回退到 Mixed 模式..."
-call :updateWinswXml mixed
-"!WINSW_EXE!" start >nul 2>nul
-timeout /t 5 /nobreak >nul 2>nul
-call :sbRunning
-if !errorlevel! neq 0 exit /b 1
-call :echoWarn "已回退到 Mixed 模式"
-exit /b 0
+exit /b 1
 :startMode_notun
 call :echoError "未找到 config-tun.json，请先更新订阅"
 exit /b 1
@@ -499,14 +495,13 @@ set "ACT=%~1"
 set "SUCCESS=1"
 if /i "%ACT%"=="kernel" goto :do_kernel
 if /i "%ACT%"=="sub" goto :do_sub
-if /i "%ACT%"=="start-mixed" goto :do_start-mixed
-if /i "%ACT%"=="start-tun" goto :do_start-tun
+if /i "%ACT%"=="start" goto :do_start
 if /i "%ACT%"=="stop" goto :do_stop
 if /i "%ACT%"=="boot-mixed" goto :do_boot-mixed
 if /i "%ACT%"=="boot-tun" goto :do_boot-tun
 if /i "%ACT%"=="uninstall" goto :do_uninstall
 call :echoError "未知操作: %ACT%"
-call :echoInfo "用法: kernel / sub / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall"
+call :echoInfo "用法: kernel / sub / start / stop / boot-mixed / boot-tun / uninstall"
 set "SUCCESS=1"
 goto :runAction_done
 :do_kernel
@@ -517,12 +512,8 @@ goto :runAction_done
 call :updateSub
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
-:do_start-mixed
+:do_start
 call :startMode "mixed"
-set "SUCCESS=!errorlevel!"
-goto :runAction_done
-:do_start-tun
-call :startMode "tun"
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_stop
@@ -575,39 +566,34 @@ call :showStatus
 echo.
 echo.
 call :echoColor 90 "  ── 日常操作 ──"
-set "ML=%ESC%[96m  1 - 启动/重启 (Mixed 模式)%ESC%[0m"                                & call echo %%ML%%
-set "ML=%ESC%[96m  2 - 启动/重启 (TUN 模式)%ESC%[0m"                                  & call echo %%ML%%
-set "ML=%ESC%[96m  3 - 停止 sing-box%ESC%[0m"                                         & call echo %%ML%%
+set "ML=%ESC%[96m  1 - 启动/重启 sing-box%ESC%[0m"                                         & call echo %%ML%%
+set "ML=%ESC%[91m  2 - 停止 sing-box%ESC%[0m"                                              & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 设置 ──"
-set "ML=%ESC%[96m  4 - 设置开机自启为 Mixed 模式%ESC%[0m"                                & call echo %%ML%%
-set "ML=%ESC%[96m  5 - 设置开机自启为 TUN 模式%ESC%[0m"                                  & call echo %%ML%%
-set "ML=%ESC%[96m  6 - 关闭开机自启(卸载 WinSW 服务)%ESC%[0m"                          & call echo %%ML%%
+set "ML=%ESC%[96m  3 - 设置开机自启为 Mixed 模式%ESC%[0m"                                & call echo %%ML%%
+set "ML=%ESC%[96m  4 - 设置开机自启为 TUN 模式%ESC%[0m"                                  & call echo %%ML%%
+set "ML=%ESC%[96m  5 - 关闭开机自启(卸载 WinSW 服务)%ESC%[0m"                          & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 维护 ──"
-set "ML=%ESC%[96m  7 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
-set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  6 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  7 - 更新订阅%ESC%[0m"                                              & call echo %%ML%%
 echo.
 set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
-choice /c 123456780 /n /m "请选择操作: "
+choice /c 12345670 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
 if "!CHOICE!"=="1" goto :menu_start-mixed
-if "!CHOICE!"=="2" goto :menu_start-tun
-if "!CHOICE!"=="3" goto :menu_stop
-if "!CHOICE!"=="4" goto :menu_boot-mixed
-if "!CHOICE!"=="5" goto :menu_boot-tun
-if "!CHOICE!"=="6" goto :menu_uninstall
-if "!CHOICE!"=="7" goto :menu_kernel
-if "!CHOICE!"=="8" goto :menu_sub
-if "!CHOICE!"=="9" goto :menu
+if "!CHOICE!"=="2" goto :menu_stop
+if "!CHOICE!"=="3" goto :menu_boot-mixed
+if "!CHOICE!"=="4" goto :menu_boot-tun
+if "!CHOICE!"=="5" goto :menu_uninstall
+if "!CHOICE!"=="6" goto :menu_kernel
+if "!CHOICE!"=="7" goto :menu_sub
+if "!CHOICE!"=="0" goto :menu
 call :echoError "无效选项"
 goto :menu
 :menu_start-mixed
 call :runAction "start-mixed"
-goto :menu
-:menu_start-tun
-call :runAction "start-tun"
 goto :menu
 :menu_stop
 call :runAction "stop"
