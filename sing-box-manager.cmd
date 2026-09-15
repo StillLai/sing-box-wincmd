@@ -593,6 +593,7 @@ REM Main
 REM ============================================================================
 :main
 call :setESC
+del /f /q "%temp%\sb_running_mode" >nul 2>nul
 set "ACTION=%~1"
 if not "%ACTION%"=="" (
     call :runAction "%ACTION%"
