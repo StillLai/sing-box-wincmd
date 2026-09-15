@@ -1,8 +1,7 @@
 @echo off
 REM Boot-time launcher for sing-box
 REM Launches sing-box outside Task Scheduler Job Object with no visible window.
-REM Delegates to launch-hidden.ps1 which uses Win32 CreateProcess with
-REM CREATE_BREAKAWAY_FROM_JOB + STARTF_USESHOWWINDOW(SW_HIDE).
+REM Uses launch-hidden.ps1 (Win32 CreateProcess) for reliable Job Object escape.
 
 setlocal EnableDelayedExpansion
 
@@ -28,10 +27,9 @@ if not exist "!CONFIG!" (
     exit /b 1
 )
 
-REM Use -Command with explicit variable assignments to avoid PowerShell
-REM parameter parsing issues (e.g. -D in args being misinterpreted as -Dir).
+REM NOTE: exit 0 means spawn succeeded (async). Caller must verify sing-box is running.
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$exe='!EXE!'; $args='run -c \"!CONFIG!\" -D \"!CORE_DIR!\"'; $dir='!CORE_DIR!'; & '%~dp0launch-hidden.ps1' -Exe $exe -CmdArgs $args -Dir $dir"
+  "$exe='!EXE!'; $argStr='run -c \"!CONFIG!\" -D \"!CORE_DIR!\"'; $dir='!CORE_DIR!'; & '%~dp0launch-hidden.ps1' -Exe $exe -CmdArgs $argStr -Dir $dir" >> "!LOG!" 2>&1
 set "RET=!errorlevel!"
 
 if !RET! neq 0 (
