@@ -1,6 +1,10 @@
 # sing-box core and runtime files
 service/core/
 
+# WinSW service wrapper (downloaded at runtime)
+service/sing-box-service.exe
+service/sing-box-service.xml
+
 # User config (contains private Gist ID)
 config.env
 
