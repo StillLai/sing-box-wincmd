@@ -7,9 +7,10 @@
 3. **CWD 通过 XML 配置** — `<workingdirectory>%BASE%\core</workingdirectory>` 确保正确。
 4. **失败自动重启** — WinSW `<onfailure>` 配置 3 次重启（10s/20s/30s）。
 5. **优雅停止** — WinSW `stop` 命令发送 Ctrl+C 信号，sing-box 可优雅退出。
+6. **更新时必须通过 WinSW 停止** — 不得用 `taskkill` 直接杀进程，否则 WinSW 可能触发 onfailure 重启竞争。
 
 ## 管理脚本
 
-1. 启动/停止/状态/卸载通过 `sing-box-service.exe` 命令实现。
+1. 所有启停操作通过 `sing-box-service.exe` 命令实现，不得用 `taskkill`。
 2. 模式切换通过修改 XML `<arguments>` + 重启服务实现。
 3. WinSW 自动从 GitHub 下载（使用 PROXY_PREFIX 代理）。
