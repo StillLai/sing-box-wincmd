@@ -495,9 +495,9 @@ set "ACT=%~1"
 set "SUCCESS=1"
 if /i "%ACT%"=="kernel" goto :do_kernel
 if /i "%ACT%"=="sub" goto :do_sub
-if /i "%ACT%"=="start" goto :do_start
-if /i "%ACT%"=="start-mixed" goto :do_start
-if /i "%ACT%"=="start-tun" goto :do_start
+if /i "%ACT%"=="start" goto :do_restart
+if /i "%ACT%"=="start-mixed" goto :do_start-mixed
+if /i "%ACT%"=="start-tun" goto :do_start-tun
 if /i "%ACT%"=="stop" goto :do_stop
 if /i "%ACT%"=="boot-mixed" goto :do_boot-mixed
 if /i "%ACT%"=="boot-tun" goto :do_boot-tun
@@ -514,8 +514,16 @@ goto :runAction_done
 call :updateSub
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
-:do_start
+:do_restart
+call :restartBootMode
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+:do_start-mixed
 call :startMode "mixed"
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+:do_start-tun
+call :startMode "tun"
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_stop
@@ -584,7 +592,7 @@ set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                    
 echo.
 choice /c 12345670 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
-if "!CHOICE!"=="1" goto :menu_start-mixed
+if "!CHOICE!"=="1" goto :menu_restart
 if "!CHOICE!"=="2" goto :menu_stop
 if "!CHOICE!"=="3" goto :menu_boot-mixed
 if "!CHOICE!"=="4" goto :menu_boot-tun
@@ -594,8 +602,8 @@ if "!CHOICE!"=="7" goto :menu_sub
 if "!CHOICE!"=="0" goto :menu
 call :echoError "无效选项"
 goto :menu
-:menu_start-mixed
-call :runAction "start-mixed"
+:menu_restart
+call :runAction "start"
 goto :menu
 :menu_stop
 call :runAction "stop"
