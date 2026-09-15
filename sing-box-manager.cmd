@@ -440,7 +440,7 @@ call :echoInfo "启动 sing-box (%~1 模式)..."
 timeout /t 5 /nobreak >nul 2>nul
 call :sbRunning
 if !errorlevel! neq 0 goto :startMode_fail
-echo %~1 > "%temp%\sb_running_mode"
+echo %~1> "%temp%\sb_running_mode"
 if /i "%~1"=="tun" call :waitTunReady
 call :echoSuccess "sing-box (%~1 模式) 已启动"
 exit /b 0
