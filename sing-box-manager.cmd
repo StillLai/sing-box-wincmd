@@ -495,15 +495,17 @@ set "ACT=%~1"
 set "SUCCESS=1"
 if /i "%ACT%"=="kernel" goto :do_kernel
 if /i "%ACT%"=="sub" goto :do_sub
-if /i "%ACT%"=="start" goto :do_restart
-if /i "%ACT%"=="start-mixed" goto :do_start-mixed
-if /i "%ACT%"=="start-tun" goto :do_start-tun
+if /i "%ACT%"=="restart-mixed" goto :do_restart_mixed
+if /i "%ACT%"=="restart-tun" goto :do_restart_tun
+if /i "%ACT%"=="start" goto :do_restart_mixed
+if /i "%ACT%"=="start-mixed" goto :do_restart_mixed
+if /i "%ACT%"=="start-tun" goto :do_restart_tun
 if /i "%ACT%"=="stop" goto :do_stop
 if /i "%ACT%"=="boot-mixed" goto :do_boot-mixed
 if /i "%ACT%"=="boot-tun" goto :do_boot-tun
 if /i "%ACT%"=="uninstall" goto :do_uninstall
 call :echoError "未知操作: %ACT%"
-call :echoInfo "用法: kernel / sub / start / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall"
+call :echoInfo "用法: restart-mixed / restart-tun / start / start-mixed / start-tun / stop / boot-mixed / boot-tun / uninstall / kernel / sub"
 set "SUCCESS=1"
 goto :runAction_done
 :do_kernel
@@ -514,8 +516,14 @@ goto :runAction_done
 call :updateSub
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
-:do_restart
-call :restartBootMode
+:do_restart_mixed
+call :updateWinswXml mixed
+call :startMode "mixed"
+set "SUCCESS=!errorlevel!"
+goto :runAction_done
+:do_restart_tun
+call :updateWinswXml tun
+call :startMode "tun"
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_start-mixed
@@ -576,8 +584,9 @@ call :showStatus
 echo.
 echo.
 call :echoColor 90 "  ── 日常操作 ──"
-set "ML=%ESC%[96m  1 - 启动/重启 sing-box%ESC%[0m"                                         & call echo %%ML%%
-set "ML=%ESC%[91m  2 - 停止 sing-box%ESC%[0m"                                              & call echo %%ML%%
+set "ML=%ESC%[96m  1 - 启动/重启 (Mixed 模式)%ESC%[0m"                                & call echo %%ML%%
+set "ML=%ESC%[96m  2 - 启动/重启 (TUN 模式)%ESC%[0m"                                  & call echo %%ML%%
+set "ML=%ESC%[91m  3 - 停止 sing-box%ESC%[0m"                                              & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 设置 ──"
 set "ML=%ESC%[96m  4 - 设置开机自启为 Mixed 模式%ESC%[0m"                                & call echo %%ML%%
@@ -590,20 +599,24 @@ set "ML=%ESC%[96m  8 - 更新订阅%ESC%[0m"                                    
 echo.
 set "ML=%ESC%[90m  0 - 刷新状态%ESC%[0m"                                              & call echo %%ML%%
 echo.
-choice /c 12456780 /n /m "请选择操作: "
+choice /c 123456780 /n /m "请选择操作: "
 set "CHOICE=!errorlevel!"
-if "!CHOICE!"=="1" goto :menu_restart
-if "!CHOICE!"=="2" goto :menu_stop
-if "!CHOICE!"=="3" goto :menu_boot-mixed
-if "!CHOICE!"=="4" goto :menu_boot-tun
-if "!CHOICE!"=="5" goto :menu_uninstall
-if "!CHOICE!"=="6" goto :menu_kernel
-if "!CHOICE!"=="7" goto :menu_sub
-if "!CHOICE!"=="0" goto :menu
+if "!CHOICE!"=="1" goto :menu_restart-mixed
+if "!CHOICE!"=="2" goto :menu_restart-tun
+if "!CHOICE!"=="3" goto :menu_stop
+if "!CHOICE!"=="4" goto :menu_boot-mixed
+if "!CHOICE!"=="5" goto :menu_boot-tun
+if "!CHOICE!"=="6" goto :menu_uninstall
+if "!CHOICE!"=="7" goto :menu_kernel
+if "!CHOICE!"=="8" goto :menu_sub
+if "!CHOICE!"=="9" goto :menu
 call :echoError "无效选项"
 goto :menu
-:menu_restart
-call :runAction "start"
+:menu_restart-mixed
+call :runAction "restart-mixed"
+goto :menu
+:menu_restart-tun
+call :runAction "restart-tun"
 goto :menu
 :menu_stop
 call :runAction "stop"
