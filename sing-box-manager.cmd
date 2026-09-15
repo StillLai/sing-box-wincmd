@@ -181,7 +181,12 @@ if !errorlevel! equ 0 (
     call :echoInfo "检测到 sing-box 正在运行，正在停止.."
     "!WINSW_EXE!" stop >nul 2>nul
     if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
+    set /a "_kw=0"
+    :updateKernel_waitstop
+    timeout /t 1 /nobreak >nul 2>nul
+    set /a "_kw+=1"
+    call :sbRunning
+    if !errorlevel! equ 0 if !_kw! lss 10 goto :updateKernel_waitstop
 )
 REM Extract sing-box.exe directly from ZIP to final location
 call :echoInfo "正在解压..."
@@ -296,7 +301,7 @@ if !errorlevel! neq 0 (
     call :echoError "Tun 配置下载失败"
     goto :subRestoreAndExit
 )
-REM All downloads succeeded —atomically replace configs
+REM All downloads succeeded — atomically replace configs
 move /y "%MIXED_FILE%.tmp" "%MIXED_FILE%" >nul 2>nul
 move /y "%TUN_FILE%.tmp" "%TUN_FILE%" >nul 2>nul
 if not exist "%MIXED_FILE%" goto :subRestoreAndExit
@@ -308,9 +313,6 @@ REM Detect mode BEFORE killing so we know what to restart
 call :sbRunning
 if !errorlevel! equ 0 (
     call :echoInfo "检测到 sing-box 正在运行，正在重启以应用新配置.."
-    "!WINSW_EXE!" stop >nul 2>nul
-    if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
-    timeout /t 2 /nobreak >nul 2>nul
     call :restartBootMode
     if !errorlevel! neq 0 (
         call :echoWarn "订阅已更新，但重启失败，请手动启动"
@@ -431,6 +433,8 @@ timeout /t 1 /nobreak >nul 2>nul
 set /a "_stopWait+=1"
 call :sbRunning
 if !errorlevel! equ 0 if !_stopWait! lss 10 goto :startMode_waitstop
+call :sbRunning
+if !errorlevel! equ 0 call :echoError "服务停止超时，请手动停止后重试" & exit /b 1
 :startMode_skipstop
 call :echoInfo "启动 sing-box (%~1 模式)..."
 "!WINSW_EXE!" start >nul 2>nul
