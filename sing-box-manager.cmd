@@ -530,9 +530,9 @@ if !errorlevel! equ 0 set "RUNNING=TUN 模式运行中"
 call :echoColor 96 "运行状态:   !RUNNING!"
 REM Determine boot mode from SCM startup type
 set "BOOT_MODE=未注册"
-sc qc sing-box-mixed 2>nul | findstr /i "AUTO_START\|DELAYED" >nul 2>nul
+sc qc sing-box-mixed 2>nul | findstr /i "AUTO_START" >nul 2>nul
 if !errorlevel! equ 0 set "BOOT_MODE=Mixed"
-sc qc sing-box-tun 2>nul | findstr /i "AUTO_START\|DELAYED" >nul 2>nul
+sc qc sing-box-tun 2>nul | findstr /i "AUTO_START" >nul 2>nul
 if !errorlevel! equ 0 set "BOOT_MODE=TUN"
 if "!BOOT_MODE!"=="未注册" ( call :echoColor 90 "开机自启:   未注册" )
 if "!BOOT_MODE!"=="Mixed" ( call :echoColor 96 "开机自启:   Mixed 模式" )
