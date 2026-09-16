@@ -603,6 +603,12 @@ if !errorlevel! neq 0 (
 )
 del /f /q "!WINSW_EXE_BAK!" >nul 2>nul
 call :echoSuccess "WinSW 更新完成"
+REM Capture running mode before stopping
+set "_WAS_RUNNING="
+sc query sing-box-mixed 2>nul | findstr /i "RUNNING" >nul 2>nul
+if !errorlevel! equ 0 set "_WAS_RUNNING=mixed"
+sc query sing-box-tun 2>nul | findstr /i "RUNNING" >nul 2>nul
+if !errorlevel! equ 0 set "_WAS_RUNNING=tun"
 REM Capture current boot mode before reinstall
 set "_WINSW_BOOT_MODE="
 sc query sing-box-mixed >nul 2>nul
@@ -639,6 +645,11 @@ if defined _WINSW_BOOT_MODE (
     call :setServiceBootMode mixed
 )
 call :echoSuccess "服务已重新注册"
+REM Restart the service that was running before
+if defined _WAS_RUNNING (
+    call :echoInfo "正在恢复 !_WAS_RUNNING! 模式..."
+    call :startMode "!_WAS_RUNNING!"
+)
 set "SUCCESS=0"
 goto :runAction_done
 :do_restart_mixed
