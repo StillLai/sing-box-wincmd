@@ -116,15 +116,10 @@ REM ============================================================================
 if /i "%~1"=="tun" (
     set "_AUTO_SVC=sing-box-tun"
     set "_MANUAL_SVC=sing-box-mixed"
-    set "_AUTO_XML=!WINSW_XML_TUN!"
-    set "_MANUAL_XML=!WINSW_XML_MIXED!"
 ) else (
     set "_AUTO_SVC=sing-box-mixed"
     set "_MANUAL_SVC=sing-box-tun"
-    set "_AUTO_XML=!WINSW_XML_MIXED!"
-    set "_MANUAL_XML=!WINSW_XML_TUN!"
 )
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0service\set-boot-mode.ps1" -AutoXml "!_AUTO_XML!" -ManualXml "!_MANUAL_XML!" >nul 2>nul
 sc config !_AUTO_SVC! start= delayed-auto >nul 2>nul
 sc config !_MANUAL_SVC! start= demand >nul 2>nul
 goto :eof

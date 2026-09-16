@@ -1,10 +1,10 @@
-<service>
+﻿<service>
   <id>sing-box-mixed</id>
   <name>sing-box Mixed</name>
   <executable>%BASE%\core\sing-box.exe</executable>
   <arguments>run -c "%BASE%\core\config-mixed.json" -D "%BASE%\core"</arguments>
   <workingdirectory>%BASE%\core</workingdirectory>
-  <startmode>automatic</startmode>
+  <startmode>manual</startmode>
   <onfailure action="restart" delay="10 sec"/>
   <onfailure action="restart" delay="20 sec"/>
   <onfailure action="restart" delay="30 sec"/>
@@ -13,3 +13,17 @@
     <keepFiles>2</keepFiles>
   </log>
 </service>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
