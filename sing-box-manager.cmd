@@ -708,7 +708,7 @@ echo.
 call :echoColor 90 "  ── 设置 ──"
 set "ML=%ESC%[96m  4 - 设置开机自启为 Mixed 模式%ESC%[0m"                                & call echo %%ML%%
 set "ML=%ESC%[96m  5 - 设置开机自启为 TUN 模式%ESC%[0m"                                  & call echo %%ML%%
-set "ML=%ESC%[96m  6 - 关闭开机自启(卸载 WinSW 服务)%ESC%[0m"                          & call echo %%ML%%
+set "ML=%ESC%[91m  6 - 关闭开机自启(卸载 WinSW 服务)%ESC%[0m"                          & call echo %%ML%%
 echo.
 call :echoColor 90 "  ── 维护 ──"
 set "ML=%ESC%[96m  7 - 更新核心%ESC%[0m"                                              & call echo %%ML%%
