@@ -116,10 +116,18 @@ REM ============================================================================
 if /i "%~1"=="tun" (
     set "_AUTO_SVC=sing-box-tun"
     set "_MANUAL_SVC=sing-box-mixed"
+    set "_AUTO_XML=!WINSW_XML_TUN!"
+    set "_MANUAL_XML=!WINSW_XML_MIXED!"
 ) else (
     set "_AUTO_SVC=sing-box-mixed"
     set "_MANUAL_SVC=sing-box-tun"
+    set "_AUTO_XML=!WINSW_XML_MIXED!"
+    set "_MANUAL_XML=!WINSW_XML_TUN!"
 )
+REM Update XML startmode to match SCM
+powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -Raw '!_AUTO_XML!') -replace '<startmode>[^<]*</startmode>','<startmode>automatic</startmode>' | Set-Content -LiteralPath '!_AUTO_XML!' -Encoding UTF8" >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -Raw '!_MANUAL_XML!') -replace '<startmode>[^<]*</startmode>','<startmode>manual</startmode>' | Set-Content -LiteralPath '!_MANUAL_XML!' -Encoding UTF8" >nul 2>nul
+REM Update SCM start type
 sc config !_AUTO_SVC! start= delayed-auto >nul 2>nul
 sc config !_MANUAL_SVC! start= demand >nul 2>nul
 goto :eof

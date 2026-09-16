@@ -4,6 +4,10 @@ service/core/
 # WinSW service wrapper (downloaded at runtime)
 service/sing-box-service.exe
 
+# WinSW XML configs (modified at runtime by setServiceBootMode)
+service/sing-box-service-mixed.xml
+service/sing-box-service-tun.xml
+
 # WinSW runtime logs (dual-service: mixed + tun)
 service/sing-box-service-mixed.*.log
 service/sing-box-service-tun.*.log
