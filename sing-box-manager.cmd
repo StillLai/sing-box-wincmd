@@ -120,8 +120,7 @@ if /i "%~1"=="tun" (
     set "_AUTO_XML=!WINSW_XML_MIXED!"
     set "_MANUAL_XML=!WINSW_XML_TUN!"
 )
-powershell -NoProfile -Command "(Get-Content '!_AUTO_XML!') -replace '<startmode>[^<]*</startmode>','<startmode>automatic</startmode>' | Set-Content '!_AUTO_XML!' -Encoding UTF8" >nul 2>nul
-powershell -NoProfile -Command "(Get-Content '!_MANUAL_XML!') -replace '<startmode>[^<]*</startmode>','<startmode>manual</startmode>' | Set-Content '!_MANUAL_XML!' -Encoding UTF8" >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0service\set-boot-mode.ps1" -AutoXml "!_AUTO_XML!" -ManualXml "!_MANUAL_XML!" >nul 2>nul
 goto :eof
 REM ============================================================================
 REM Detect running mode by checking which service is running
