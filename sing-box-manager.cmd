@@ -528,22 +528,12 @@ if !errorlevel! equ 0 set "RUNNING=Mixed 模式运行中"
 sc query sing-box-tun 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! equ 0 set "RUNNING=TUN 模式运行中"
 call :echoColor 96 "运行状态:   !RUNNING!"
-REM Determine boot mode from XML startmode setting (check both services)
+REM Determine boot mode from SCM startup type
 set "BOOT_MODE=未注册"
-sc query sing-box-mixed >nul 2>nul
-if !errorlevel! equ 0 (
-    if exist "!WINSW_XML_MIXED!" (
-        findstr /i "automatic" "!WINSW_XML_MIXED!" >nul 2>nul
-        if !errorlevel! equ 0 set "BOOT_MODE=Mixed"
-    )
-)
-sc query sing-box-tun >nul 2>nul
-if !errorlevel! equ 0 (
-    if exist "!WINSW_XML_TUN!" (
-        findstr /i "automatic" "!WINSW_XML_TUN!" >nul 2>nul
-        if !errorlevel! equ 0 set "BOOT_MODE=TUN"
-    )
-)
+sc qc sing-box-mixed 2>nul | findstr /i "AUTO_START\|DELAYED" >nul 2>nul
+if !errorlevel! equ 0 set "BOOT_MODE=Mixed"
+sc qc sing-box-tun 2>nul | findstr /i "AUTO_START\|DELAYED" >nul 2>nul
+if !errorlevel! equ 0 set "BOOT_MODE=TUN"
 if "!BOOT_MODE!"=="未注册" ( call :echoColor 90 "开机自启:   未注册" )
 if "!BOOT_MODE!"=="Mixed" ( call :echoColor 96 "开机自启:   Mixed 模式" )
 if "!BOOT_MODE!"=="TUN" ( call :echoColor 96 "开机自启:   TUN 模式" )
@@ -610,20 +600,10 @@ sc query sing-box-tun 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! equ 0 set "_WAS_RUNNING=tun"
 REM Capture current boot mode before reinstall
 set "_WINSW_BOOT_MODE="
-sc query sing-box-mixed >nul 2>nul
-if !errorlevel! equ 0 (
-    if exist "!WINSW_XML_MIXED!" (
-        findstr /i "automatic" "!WINSW_XML_MIXED!" >nul 2>nul
-        if !errorlevel! equ 0 set "_WINSW_BOOT_MODE=mixed"
-    )
-)
-sc query sing-box-tun >nul 2>nul
-if !errorlevel! equ 0 (
-    if exist "!WINSW_XML_TUN!" (
-        findstr /i "automatic" "!WINSW_XML_TUN!" >nul 2>nul
-        if !errorlevel! equ 0 set "_WINSW_BOOT_MODE=tun"
-    )
-)
+sc qc sing-box-mixed 2>nul | findstr /i "AUTO_START\|DELAYED" >nul 2>nul
+if !errorlevel! equ 0 set "_WINSW_BOOT_MODE=mixed"
+sc qc sing-box-tun 2>nul | findstr /i "AUTO_START\|DELAYED" >nul 2>nul
+if !errorlevel! equ 0 set "_WINSW_BOOT_MODE=tun"
 REM Stop services before reinstall
 call :echoInfo "停止服务..."
 sc stop sing-box-mixed >nul 2>nul
