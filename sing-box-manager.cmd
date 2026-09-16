@@ -57,9 +57,10 @@ REM sing-box paths
 set "SINGBOX_EXE=%~dp0service\core\sing-box.exe"
 set "MIXED_CONFIG_ABS=%~dp0service\core\config-mixed.json"
 set "TUN_CONFIG_ABS=%~dp0service\core\config-tun.json"
-REM WinSW service wrapper paths
+REM WinSW service wrapper paths (dual-service architecture)
 set "WINSW_EXE=%~dp0service\sing-box-service.exe"
-set "WINSW_XML=%~dp0service\sing-box-service.xml"
+set "WINSW_XML_MIXED=%~dp0service\sing-box-service-mixed.xml"
+set "WINSW_XML_TUN=%~dp0service\sing-box-service-tun.xml"
 set "WINSW_API=https://api.github.com/repos/winsw/winsw/releases"
 goto :main
 REM ============================================================================
@@ -95,14 +96,52 @@ schtasks /query /tn "%~1" >nul 2>nul
 if !errorlevel! equ 0 exit /b 0
 exit /b 1
 REM ============================================================================
-REM Check if sing-box service is running (ignores arguments)
+REM Check if any sing-box service is running
+REM   Checks both sing-box-mixed and sing-box-tun
 REM   exit /b 0 if running, 1 otherwise
 REM ============================================================================
 :sbRunning
 set "SB_RUNNING=1"
-sc query sing-box 2>nul | findstr /i "RUNNING" >nul 2>nul
+sc query sing-box-mixed 2>nul | findstr /i "RUNNING" >nul 2>nul
+if !errorlevel! equ 0 set "SB_RUNNING=0"
+sc query sing-box-tun 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! equ 0 set "SB_RUNNING=0"
 exit /b !SB_RUNNING!
+REM ============================================================================
+REM Update XML <startmode> tag for service boot configuration
+REM   %1 = mode: "mixed" or "tun"
+REM   Sets target mode to automatic, other to manual
+REM ============================================================================
+:setServiceBootMode
+if /i "%~1"=="tun" (
+    set "_AUTO_XML=!WINSW_XML_TUN!"
+    set "_MANUAL_XML=!WINSW_XML_MIXED!"
+) else (
+    set "_AUTO_XML=!WINSW_XML_MIXED!"
+    set "_MANUAL_XML=!WINSW_XML_TUN!"
+)
+powershell -NoProfile -Command "(Get-Content '!_AUTO_XML!') -replace '<startmode>[^<]*</startmode>','<startmode>automatic</startmode>' | Set-Content '!_AUTO_XML!' -Encoding UTF8" >nul 2>nul
+powershell -NoProfile -Command "(Get-Content '!_MANUAL_XML!') -replace '<startmode>[^<]*</startmode>','<startmode>manual</startmode>' | Set-Content '!_MANUAL_XML!' -Encoding UTF8" >nul 2>nul
+goto :eof
+REM ============================================================================
+REM Detect running mode by checking which service is running
+REM   Output: sets RUN_MODE to "mixed" or "tun"
+REM   Default: "mixed" (when neither service is running)
+REM ============================================================================
+:detectRunMode
+set "RUN_MODE=mixed"
+sc query sing-box-tun 2>nul | findstr /i "RUNNING" >nul 2>nul
+if !errorlevel! equ 0 set "RUN_MODE=tun"
+goto :eof
+REM ============================================================================
+REM Restart in the configured boot mode
+REM   Detects running service and restarts accordingly
+REM ============================================================================
+:restartBootMode
+call :detectRunMode
+call :echoInfo "根据当前运行状态，按!RUN_MODE! 模式重启..."
+call :startMode "!RUN_MODE!"
+exit /b !errorlevel!
 REM ============================================================================
 REM Update kernel
 REM ============================================================================
@@ -182,8 +221,10 @@ call :sbRunning
 if !errorlevel! equ 0 (
     set "RUNNING_MODE=1"
     call :echoInfo "检测到 sing-box 正在运行，正在停止.."
-    "!WINSW_EXE!" stop >nul 2>nul
-    if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
+    "!WINSW_EXE!" stop "!WINSW_XML_MIXED!" >nul 2>nul
+    "!WINSW_EXE!" stop "!WINSW_XML_TUN!" >nul 2>nul
+    sc stop sing-box-mixed >nul 2>nul
+    sc stop sing-box-tun >nul 2>nul
     set /a "_kw=0"
     :updateKernel_waitstop
     timeout /t 1 /nobreak >nul 2>nul
@@ -249,27 +290,6 @@ if !WAIT_COUNT! geq 10 (
 )
 timeout /t 3 /nobreak >nul 2>nul
 goto :waitTunLoop
-REM ============================================================================
-REM Detect boot mode from WinSW XML config
-REM   Output: sets global variable BOOT_MODE_VAR to "mixed" or "tun"
-REM   Default: "mixed" (when XML not found or no TUN config)
-REM ============================================================================
-:detectBootMode
-set "BOOT_MODE_VAR=mixed"
-if exist "!WINSW_XML!" (
-    findstr /i "config-tun" "!WINSW_XML!" >nul 2>nul
-    if !errorlevel! equ 0 set "BOOT_MODE_VAR=tun"
-)
-goto :eof
-REM ============================================================================
-REM Restart in the configured boot mode
-REM   Detects boot task state and starts accordingly
-REM ============================================================================
-:restartBootMode
-call :detectBootMode
-call :echoInfo "根据开机自启设置，按!BOOT_MODE_VAR! 模式重启..."
-call :startMode "!BOOT_MODE_VAR!"
-exit /b !errorlevel!
 REM ============================================================================
 REM Update subscription
 REM ============================================================================
@@ -347,31 +367,35 @@ if !errorlevel! neq 0 call :echoError "WinSW 下载失败" & del /f /q "!WINSW_E
 call :echoSuccess "WinSW 下载完成"
 :downloadWinsw_exists
 exit /b 0
-:updateWinswXml
-set "WINSW_MODE=%~1"
-if not defined WINSW_MODE set "WINSW_MODE=mixed"
-set "WINSW_SRC=%~dp0service\sing-box-service-!WINSW_MODE!.xml"
-if not exist "!WINSW_SRC!" call :echoError "未找到 !WINSW_SRC!" & exit /b 1
-copy /y "!WINSW_SRC!" "!WINSW_XML!" >nul 2>nul
-exit /b 0
+REM ============================================================================
+REM Install both WinSW services (mixed + tun)
+REM ============================================================================
 :installService
 call :downloadWinsw
 if !errorlevel! neq 0 exit /b 1
-if not exist "!WINSW_XML!" call :updateWinswXml mixed
-call :echoInfo "安装 sing-box 服务..."
-"!WINSW_EXE!" install >nul 2>nul
-if !errorlevel! neq 0 call :echoError "服务安装失败" & exit /b 1
-call :echoSuccess "sing-box 服务已安装"
+call :echoInfo "安装 sing-box Mixed 服务..."
+"!WINSW_EXE!" install "!WINSW_XML_MIXED!" >nul 2>nul
+if !errorlevel! neq 0 call :echoError "Mixed 服务安装失败" & exit /b 1
+call :echoInfo "安装 sing-box TUN 服务..."
+"!WINSW_EXE!" install "!WINSW_XML_TUN!" >nul 2>nul
+if !errorlevel! neq 0 call :echoError "TUN 服务安装失败" & exit /b 1
+call :setServiceBootMode mixed
+call :echoSuccess "sing-box 服务已安装 (mixed + tun)"
 exit /b 0
+REM ============================================================================
+REM Ensure both services are registered
+REM ============================================================================
 :ensureTasks
 if not exist "!SINGBOX_EXE!" call :echoError "未找到 sing-box.exe，请先更新核心" & exit /b 1
-sc query sing-box >nul 2>nul
-if !errorlevel! equ 0 exit /b 0
-call :installService
-exit /b !errorlevel!
+sc query sing-box-mixed >nul 2>nul
+if !errorlevel! neq 0 call :installService & exit /b !errorlevel!
+sc query sing-box-tun >nul 2>nul
+if !errorlevel! neq 0 call :installService & exit /b !errorlevel!
+exit /b 0
 REM ============================================================================
 REM Switch boot mode
 REM   %1 = "mixed" or "tun"
+REM   Sets target mode XML to automatic, other to manual, then starts target
 REM ============================================================================
 :switchBoot
 if /i "%~1"=="tun" (
@@ -381,13 +405,13 @@ if /i "%~1"=="tun" (
 )
 call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
-call :updateWinswXml %~1
+call :setServiceBootMode %~1
 call :startMode "%~1"
 if !errorlevel! equ 0 exit /b 0
 REM TUN failed — fall back to Mixed
 if /i not "%~1"=="tun" exit /b 1
 call :echoInfo "TUN 启动失败，回退到 Mixed 模式..."
-call :updateWinswXml mixed
+call :setServiceBootMode mixed
 call :startMode "mixed"
 exit /b !errorlevel!
 :switchBoot_notun
@@ -397,14 +421,16 @@ exit /b 1
 call :echoError "未找到 config-mixed.json，请先更新订阅"
 exit /b 1
 REM ============================================================================
-REM Stop all sing-box processes
+REM Stop all sing-box processes (both services)
 REM ============================================================================
 :stopSingbox
 call :sbRunning
 if !errorlevel! neq 0 goto :stopSingbox_notrunning
 call :echoInfo "停止 sing-box..."
-"!WINSW_EXE!" stop >nul 2>nul
-if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
+"!WINSW_EXE!" stop "!WINSW_XML_MIXED!" >nul 2>nul
+"!WINSW_EXE!" stop "!WINSW_XML_TUN!" >nul 2>nul
+sc stop sing-box-mixed >nul 2>nul
+sc stop sing-box-tun >nul 2>nul
 set /a "_sw=0"
 :stopSingbox_wait
 timeout /t 1 /nobreak >nul 2>nul
@@ -419,28 +445,36 @@ exit /b 0
 REM ============================================================================
 REM Start or restart sing-box in specified mode
 REM   %1 = "mixed" or "tun"
+REM   Stops the other service, starts the target service
 REM ============================================================================
 :startMode
 if /i "%~1"=="tun" (
     if not exist "service\core\config-tun.json" goto :startMode_notun
+    set "TARGET_SVC=sing-box-tun"
+    set "OTHER_SVC=sing-box-mixed"
+    set "TARGET_XML=!WINSW_XML_TUN!"
+    set "OTHER_XML=!WINSW_XML_MIXED!"
 ) else (
     if not exist "service\core\config-mixed.json" goto :startMode_nomixed
+    set "TARGET_SVC=sing-box-mixed"
+    set "OTHER_SVC=sing-box-tun"
+    set "TARGET_XML=!WINSW_XML_MIXED!"
+    set "OTHER_XML=!WINSW_XML_TUN!"
 )
 call :ensureTasks
 if !errorlevel! neq 0 exit /b 1
-call :sbRunning
-if !errorlevel! neq 0 goto :startMode_coldstart
-call :echoInfo "正在重启服务..."
-"!WINSW_EXE!" refresh >nul 2>nul
-"!WINSW_EXE!" restart >nul 2>nul
-goto :startMode_check
-:startMode_coldstart
+REM Stop the other service first
+sc query !OTHER_SVC! 2>nul | findstr /i "RUNNING" >nul 2>nul
+if !errorlevel! equ 0 (
+    call :echoInfo "停止 !OTHER_SVC!..."
+    "!WINSW_EXE!" stop "!OTHER_XML!" >nul 2>nul
+)
+REM Start target service
 call :echoInfo "启动 sing-box (%~1 模式)..."
-"!WINSW_EXE!" install >nul 2>nul
-"!WINSW_EXE!" start >nul 2>nul
-:startMode_check
+"!WINSW_EXE!" start "!TARGET_XML!" >nul 2>nul
 timeout /t 5 /nobreak >nul 2>nul
-call :sbRunning
+REM Check if running
+sc query !TARGET_SVC! 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! neq 0 goto :startMode_fail
 if /i "%~1"=="tun" call :waitTunReady
 call :echoSuccess "sing-box (%~1 模式) 已启动"
@@ -455,21 +489,25 @@ exit /b 1
 call :echoError "未找到 config-mixed.json，请先更新订阅"
 exit /b 1
 REM ============================================================================
-REM Uninstall WinSW service (and clean up legacy scheduled tasks)
+REM Uninstall WinSW services (and clean up legacy scheduled tasks)
 REM ============================================================================
 :uninstallTask
 set "HAD_ERROR=0"
-sc query sing-box >nul 2>nul
-if !errorlevel! neq 0 goto :uninstallTask_noservice
-"!WINSW_EXE!" stop >nul 2>nul
-if !errorlevel! neq 0 sc stop sing-box >nul 2>nul
-timeout /t 2 /nobreak >nul 2>nul
-"!WINSW_EXE!" uninstall >nul 2>nul
-if !errorlevel! neq 0 call :echoError "服务卸载失败" & set "HAD_ERROR=1" & goto :uninstallTask_cleanup
-call :echoSuccess "sing-box 服务已卸载"
+sc query sing-box-mixed >nul 2>nul
+if !errorlevel! equ 0 (
+    "!WINSW_EXE!" stop "!WINSW_XML_MIXED!" >nul 2>nul
+    "!WINSW_EXE!" uninstall "!WINSW_XML_MIXED!" >nul 2>nul
+    if !errorlevel! neq 0 set "HAD_ERROR=1"
+)
+sc query sing-box-tun >nul 2>nul
+if !errorlevel! equ 0 (
+    "!WINSW_EXE!" stop "!WINSW_XML_TUN!" >nul 2>nul
+    "!WINSW_EXE!" uninstall "!WINSW_XML_TUN!" >nul 2>nul
+    if !errorlevel! neq 0 set "HAD_ERROR=1"
+)
+if !HAD_ERROR! equ 1 call :echoError "部分服务卸载失败"
+if !HAD_ERROR! equ 0 call :echoSuccess "sing-box 服务已卸载"
 goto :uninstallTask_cleanup
-:uninstallTask_noservice
-call :echoWarn "sing-box 服务未安装"
 :uninstallTask_cleanup
 call :taskExists "sing-box-mixed" && schtasks /delete /tn "sing-box-mixed" /f >nul 2>nul
 call :taskExists "sing-box-tun" && schtasks /delete /tn "sing-box-tun" /f >nul 2>nul
@@ -485,12 +523,28 @@ if exist "!SINGBOX_EXE!" (
     if "!SB_VERSION!"=="" set "SB_VERSION=未知"
 )
 call :echoColor 96 "sing-box:   !SB_VERSION!"
+REM Determine running state
+set "RUNNING=已停止"
+sc query sing-box-mixed 2>nul | findstr /i "RUNNING" >nul 2>nul
+if !errorlevel! equ 0 set "RUNNING=Mixed 模式运行中"
+sc query sing-box-tun 2>nul | findstr /i "RUNNING" >nul 2>nul
+if !errorlevel! equ 0 set "RUNNING=TUN 模式运行中"
+call :echoColor 96 "运行状态:   !RUNNING!"
+REM Determine boot mode from XML startmode setting (check both services)
 set "BOOT_MODE=未注册"
-sc query sing-box >nul 2>nul
+sc query sing-box-mixed >nul 2>nul
 if !errorlevel! equ 0 (
-    call :detectBootMode
-    if "!BOOT_MODE_VAR!"=="tun" set "BOOT_MODE=TUN"
-    if "!BOOT_MODE_VAR!"=="mixed" set "BOOT_MODE=Mixed"
+    if exist "!WINSW_XML_MIXED!" (
+        findstr /i "automatic" "!WINSW_XML_MIXED!" >nul 2>nul
+        if !errorlevel! equ 0 set "BOOT_MODE=Mixed"
+    )
+)
+sc query sing-box-tun >nul 2>nul
+if !errorlevel! equ 0 (
+    if exist "!WINSW_XML_TUN!" (
+        findstr /i "automatic" "!WINSW_XML_TUN!" >nul 2>nul
+        if !errorlevel! equ 0 set "BOOT_MODE=TUN"
+    )
 )
 if "!BOOT_MODE!"=="未注册" ( call :echoColor 90 "开机自启:   未注册" )
 if "!BOOT_MODE!"=="Mixed" ( call :echoColor 96 "开机自启:   Mixed 模式" )
@@ -527,27 +581,74 @@ call :updateSub
 set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_winsw
+call :echoInfo "检查 WinSW 更新..."
+set "PS_WINSW=%temp%\sb_winsw_ver.ps1"
+powershell -NoProfile -NoLogo -Command "$r=Invoke-RestMethod '!WINSW_API!'; $v3=$r|Where-Object{$_.tag_name -like 'v3*'}|Select-Object -First 1; Write-Output $v3.tag_name" > "!PS_WINSW!" 2>nul
+set "WINSW_VER="
+for /f "delims=" %%v in ('type "!PS_WINSW!"') do if not defined WINSW_VER set "WINSW_VER=%%v"
+del /f /q "!PS_WINSW!" >nul 2>nul
+if not defined WINSW_VER call :echoError "获取 WinSW 版本失败" & set "SUCCESS=1" & goto :runAction_done
+call :echoSuccess "最新版本: !WINSW_VER!"
+REM Download new WinSW to temp file first (safe: preserves old binary)
+call :echoInfo "下载 WinSW..."
+set "WINSW_EXE_BAK=!WINSW_EXE!.bak"
+if exist "!WINSW_EXE!" copy /y "!WINSW_EXE!" "!WINSW_EXE_BAK!" >nul 2>nul
 del /f /q "!WINSW_EXE!" >nul 2>nul
 call :downloadWinsw
-set "SUCCESS=!errorlevel!"
+if !errorlevel! neq 0 (
+    call :echoError "WinSW 下载失败，正在恢复旧版本..."
+    if exist "!WINSW_EXE_BAK!" copy /y "!WINSW_EXE_BAK!" "!WINSW_EXE!" >nul 2>nul
+    del /f /q "!WINSW_EXE_BAK!" >nul 2>nul
+    set "SUCCESS=1"
+    goto :runAction_done
+)
+del /f /q "!WINSW_EXE_BAK!" >nul 2>nul
+call :echoSuccess "WinSW 更新完成"
+REM Capture current boot mode before reinstall
+set "_WINSW_BOOT_MODE="
+sc query sing-box-mixed >nul 2>nul
+if !errorlevel! equ 0 (
+    if exist "!WINSW_XML_MIXED!" (
+        findstr /i "automatic" "!WINSW_XML_MIXED!" >nul 2>nul
+        if !errorlevel! equ 0 set "_WINSW_BOOT_MODE=mixed"
+    )
+)
+sc query sing-box-tun >nul 2>nul
+if !errorlevel! equ 0 (
+    if exist "!WINSW_XML_TUN!" (
+        findstr /i "automatic" "!WINSW_XML_TUN!" >nul 2>nul
+        if !errorlevel! equ 0 set "_WINSW_BOOT_MODE=tun"
+    )
+)
+REM Stop services before reinstall
+call :echoInfo "停止服务..."
+sc stop sing-box-mixed >nul 2>nul
+sc stop sing-box-tun >nul 2>nul
+timeout /t 2 /nobreak >nul 2>nul
+REM Reinstall services with new WinSW
+call :echoInfo "重新注册服务..."
+"!WINSW_EXE!" uninstall "!WINSW_XML_MIXED!" >nul 2>nul
+"!WINSW_EXE!" uninstall "!WINSW_XML_TUN!" >nul 2>nul
+"!WINSW_EXE!" install "!WINSW_XML_MIXED!" >nul 2>nul
+if !errorlevel! neq 0 call :echoError "Mixed 服务注册失败" & set "SUCCESS=1" & goto :runAction_done
+"!WINSW_EXE!" install "!WINSW_XML_TUN!" >nul 2>nul
+if !errorlevel! neq 0 call :echoError "TUN 服务注册失败" & set "SUCCESS=1" & goto :runAction_done
+REM Restore boot mode
+if defined _WINSW_BOOT_MODE (
+    call :setServiceBootMode !_WINSW_BOOT_MODE!
+) else (
+    call :setServiceBootMode mixed
+)
+call :echoSuccess "服务已重新注册"
+set "SUCCESS=0"
 goto :runAction_done
 :do_restart_mixed
-call :detectBootMode
-set "ORIG_MODE=!BOOT_MODE_VAR!"
-call :updateWinswXml mixed
 call :startMode "mixed"
-set "START_ERR=!errorlevel!"
-call :updateWinswXml "!ORIG_MODE!"
-set "SUCCESS=!START_ERR!"
+set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_restart_tun
-call :detectBootMode
-set "ORIG_MODE=!BOOT_MODE_VAR!"
-call :updateWinswXml tun
 call :startMode "tun"
-set "START_ERR=!errorlevel!"
-call :updateWinswXml "!ORIG_MODE!"
-set "SUCCESS=!START_ERR!"
+set "SUCCESS=!errorlevel!"
 goto :runAction_done
 :do_stop
 call :stopSingbox
@@ -586,10 +687,11 @@ REM ============================================================================
 :main
 call :setESC
 set "ACTION=%~1"
-if not "%ACTION%"=="" (
-    call :runAction "%ACTION%"
-    exit /b !errorlevel!
-)
+if not "%ACTION%"=="" goto :cliAction
+goto :menu
+:cliAction
+call :runAction "%ACTION%"
+exit /b !errorlevel!
 :menu
 cls
 call :echoColor 96 "========================================"

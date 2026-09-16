@@ -93,9 +93,8 @@ sing-box-wincmd/
 ├── README.md
 └── service/
     ├── sing-box-service.exe      # WinSW 二进制（自动下载，gitignore）
-    ├── sing-box-service.xml      # WinSW 配置（从模板复制，gitignore）
-    ├── sing-box-service-mixed.xml # WinSW XML 模板（Mixed 模式）
-    ├── sing-box-service-tun.xml   # WinSW XML 模板（TUN 模式）
+    ├── sing-box-service-mixed.xml # WinSW XML 配置（Mixed 模式，startmode 动态管理）
+    ├── sing-box-service-tun.xml   # WinSW XML 配置（TUN 模式，startmode 动态管理）
     └── core/                     # 运行时目录（自动创建，不提交）
         ├── sing-box.exe      # sing-box 二进制（自动下载）
         ├── config-mixed.json # Mixed 配置（自动拉取）
@@ -105,9 +104,9 @@ sing-box-wincmd/
 
 ## 工作原理
 
-1. WinSW 将 sing-box 注册为 Windows 服务，运行在 Session 0（无窗口、无弹窗）
-2. 服务以 SYSTEM 账户运行，开机自动启动
-3. 模式切换通过修改 WinSW XML 配置中的 `<arguments>` 实现
+1. WinSW 将 sing-box 注册为两个独立的 Windows 服务：`sing-box-mixed` 和 `sing-box-tun`，运行在 Session 0（无窗口、无弹窗）
+2. 服务以 SYSTEM 账户运行，开机自动启动配置为 `automatic` 的服务
+3. 模式切换通过启动目标服务并停止另一个服务实现，无需修改配置
 4. 服务崩溃后 WinSW 自动重启（最多 3 次，间隔 10s/20s/30s）
 5. 停止服务时 WinSW 发送 Ctrl+C 信号，sing-box 优雅退出
 6. 内核更新通过 GitHub API 检查最新版本，使用代理下载

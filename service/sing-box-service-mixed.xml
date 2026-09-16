@@ -1,6 +1,6 @@
 <service>
-  <id>sing-box</id>
-  <name>sing-box</name>
+  <id>sing-box-mixed</id>
+  <name>sing-box Mixed</name>
   <executable>%BASE%\core\sing-box.exe</executable>
   <arguments>run -c "%BASE%\core\config-mixed.json" -D "%BASE%\core"</arguments>
   <workingdirectory>%BASE%\core</workingdirectory>

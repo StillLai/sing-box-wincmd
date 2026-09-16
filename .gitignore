@@ -3,12 +3,10 @@ service/core/
 
 # WinSW service wrapper (downloaded at runtime)
 service/sing-box-service.exe
-service/sing-box-service.xml
 
-# WinSW runtime logs
-service/sing-box-service.err.log
-service/sing-box-service.out.log
-service/sing-box-service.wrapper.log
+# WinSW runtime logs (dual-service: mixed + tun)
+service/sing-box-service-mixed.*.log
+service/sing-box-service-tun.*.log
 
 # User config (contains private Gist ID)
 config.env

@@ -20,9 +20,10 @@ Windows 平台的 sing-box 代理管理工具，通过 WinSW (Windows Service Wr
 - **文件编码必须是 UTF-8 无 BOM** — 中文字符如果编码损坏（U+FFFD）会导致 `echo` 输出乱码和 `findstr` 匹配失败。
 
 ### 管理脚本
-- 模式切换通过修改 XML `<arguments>` + 重启服务实现。
+- 模式切换通过启动/停止独立的 WinSW 服务实现（`sing-box-mixed` / `sing-box-tun`）。两个服务共享同一 WinSW 二进制，各自使用独立的 XML 配置文件。
 - WinSW 自动从 GitHub 下载（使用 PROXY_PREFIX 代理）。
-- `sing-box-service.exe` 和 `sing-box-service.xml` 在 `service/` 目录下，运行时生成/下载，不提交 git。
+- WinSW 文档：https://github.com/winsw/winsw/tree/v3/docs
+- `sing-box-service.exe` 在 `service/` 目录下，运行时下载，不提交 git。XML 模板文件（`sing-box-service-mixed.xml`、`sing-box-service-tun.xml`）为项目内静态文件，`<startmode>` 标签由脚本动态管理（自动/手动）。
 
 ### 文档自动进化
 - **改动影响约束/架构时，必须同步更新本文档** — 不得让代码与文档不一致。
@@ -39,16 +40,15 @@ service/
 │   ├── config-mixed.json     # Mixed 模式配置（订阅更新）
 │   ├── config-tun.json       # TUN 模式配置（订阅更新）
 │   └── sing-box.log          # sing-box 运行日志
-├── sing-box-service-mixed.xml # WinSW XML 模板（Mixed 模式，项目内静态文件）
-├── sing-box-service-tun.xml   # WinSW XML 模板（TUN 模式，项目内静态文件）
-├── sing-box-service.exe      # WinSW 二进制（自动下载，gitignore）
-└── sing-box-service.xml      # WinSW 配置（从模板复制，gitignore）
+├── sing-box-service-mixed.xml # WinSW XML 配置（Mixed 模式，项目内静态文件，startmode 动态管理）
+├── sing-box-service-tun.xml   # WinSW XML 配置（TUN 模式，项目内静态文件，startmode 动态管理）
+└── sing-box-service.exe      # WinSW 二进制（自动下载，gitignore）
 ```
 
 ### 菜单操作语义
 - **设计原则**：菜单键位必须符合小键盘物理分组（789/456/123/0），让相关操作在小键盘上相邻，方便单手操作。4/5/6 同行用于设置类操作，7/8/9 同行用于维护操作，1/2/3 用于日常操作，0 用于刷新。
-- **选项 1/2**：临时切换模式（Mixed / TUN）并重启（临时修改 XML，启动后恢复原 XML，不改变开机自启模式）
-- **选项 3**：停止服务
-- **选项 4/5/6**：设置开机自启 Mixed / TUN / 关闭开机自启（永久修改 XML + 启动/卸载）
+- **选项 1/2**：临时切换模式（Mixed / TUN）并重启（启动目标服务，停止另一个服务，不改变开机自启配置）
+- **选项 3**：停止服务（停止所有运行中的 sing-box 服务）
+- **选项 4/5/6**：设置开机自启 Mixed / TUN / 关闭开机自启（设置 XML `<startmode>` + 启动目标服务 / 卸载所有服务）
 - **选项 7/8/9**：更新核心 / 更新订阅 / 更新 WinSW（789 同行维护操作）
 - **选项 0**：刷新状态
