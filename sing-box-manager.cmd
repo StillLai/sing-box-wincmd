@@ -71,6 +71,45 @@ for /f "tokens=1,2 delims=#" %%a in ('"prompt #$E# & echo on & for %%b in (1) do
     set "ESC=%%a"
 )
 goto :eof
+REM ============================================================================
+REM Generate WinSW XML config files
+REM ============================================================================
+:generateXml
+(
+echo ^<service^>
+echo   ^<id^>sing-box-mixed^</id^>
+echo   ^<name^>sing-box Mixed^</name^>
+echo   ^<executable^>%%BASE%%\core\sing-box.exe^</executable^>
+echo   ^<arguments^>run -c "%%BASE%%\core\config-mixed.json" -D "%%BASE%%\core"^</arguments^>
+echo   ^<workingdirectory^>%%BASE%%\core^</workingdirectory^>
+echo   ^<startmode^>automatic^</startmode^>
+echo   ^<onfailure action="restart" delay="10 sec"/^>
+echo   ^<onfailure action="restart" delay="20 sec"/^>
+echo   ^<onfailure action="restart" delay="30 sec"/^>
+echo   ^<log mode="roll-by-size"^>
+echo     ^<sizeThreshold^>10240^</sizeThreshold^>
+echo     ^<keepFiles^>2^</keepFiles^>
+echo   ^</log^>
+echo ^</service^>
+) > "!WINSW_XML_MIXED!"
+(
+echo ^<service^>
+echo   ^<id^>sing-box-tun^</id^>
+echo   ^<name^>sing-box TUN^</name^>
+echo   ^<executable^>%%BASE%%\core\sing-box.exe^</executable^>
+echo   ^<arguments^>run -c "%%BASE%%\core\config-tun.json" -D "%%BASE%%\core"^</arguments^>
+echo   ^<workingdirectory^>%%BASE%%\core^</workingdirectory^>
+echo   ^<startmode^>manual^</startmode^>
+echo   ^<onfailure action="restart" delay="10 sec"/^>
+echo   ^<onfailure action="restart" delay="20 sec"/^>
+echo   ^<onfailure action="restart" delay="30 sec"/^>
+echo   ^<log mode="roll-by-size"^>
+echo     ^<sizeThreshold^>10240^</sizeThreshold^>
+echo     ^<keepFiles^>2^</keepFiles^>
+echo   ^</log^>
+echo ^</service^>
+) > "!WINSW_XML_TUN!"
+goto :eof
 :echoInfo
 echo %ESC%[96m[信息] %~1%ESC%[0m
 goto :eof
@@ -379,6 +418,7 @@ REM ============================================================================
 :installService
 call :downloadWinsw
 if !errorlevel! neq 0 exit /b 1
+call :generateXml
 call :echoInfo "安装 sing-box Mixed 服务..."
 "!WINSW_EXE!" install "!WINSW_XML_MIXED!" >nul 2>nul
 if !errorlevel! neq 0 call :echoError "Mixed 服务安装失败" & exit /b 1
