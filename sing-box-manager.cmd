@@ -167,7 +167,7 @@ REM Update XML startmode to match SCM
 powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -Raw '!_AUTO_XML!') -replace '<startmode>[^<]*</startmode>','<startmode>automatic</startmode>' | Set-Content -LiteralPath '!_AUTO_XML!' -Encoding UTF8" >nul 2>nul
 powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -Raw '!_MANUAL_XML!') -replace '<startmode>[^<]*</startmode>','<startmode>manual</startmode>' | Set-Content -LiteralPath '!_MANUAL_XML!' -Encoding UTF8" >nul 2>nul
 REM Update SCM start type
-sc config !_AUTO_SVC! start= auto >nul 2>nul
+sc config !_AUTO_SVC! start= auto depend= NlaSvc >nul 2>nul
 sc config !_MANUAL_SVC! start= demand >nul 2>nul
 goto :eof
 REM ============================================================================
@@ -426,7 +426,7 @@ call :echoInfo "安装 sing-box TUN 服务..."
 "!WINSW_EXE!" install "!WINSW_XML_TUN!" >nul 2>nul
 if !errorlevel! neq 0 call :echoError "TUN 服务安装失败" & exit /b 1
 REM Set default boot mode: Mixed=auto, TUN=manual
-sc config sing-box-mixed start= auto >nul 2>nul
+sc config sing-box-mixed start= auto depend= NlaSvc >nul 2>nul
 sc config sing-box-tun start= demand >nul 2>nul
 call :echoSuccess "sing-box 服务已安装 (mixed + tun)"
 exit /b 0
