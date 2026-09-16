@@ -226,8 +226,6 @@ call :sbRunning
 if !errorlevel! equ 0 (
     set "RUNNING_MODE=1"
     call :echoInfo "检测到 sing-box 正在运行，正在停止.."
-    "!WINSW_EXE!" stop "!WINSW_XML_MIXED!" >nul 2>nul
-    "!WINSW_EXE!" stop "!WINSW_XML_TUN!" >nul 2>nul
     sc stop sing-box-mixed >nul 2>nul
     sc stop sing-box-tun >nul 2>nul
     set /a "_kw=0"
@@ -384,7 +382,9 @@ if !errorlevel! neq 0 call :echoError "Mixed 服务安装失败" & exit /b 1
 call :echoInfo "安装 sing-box TUN 服务..."
 "!WINSW_EXE!" install "!WINSW_XML_TUN!" >nul 2>nul
 if !errorlevel! neq 0 call :echoError "TUN 服务安装失败" & exit /b 1
-call :setServiceBootMode mixed
+REM Set default boot mode: Mixed=auto, TUN=manual
+sc config sing-box-mixed start= delayed-auto >nul 2>nul
+sc config sing-box-tun start= demand >nul 2>nul
 call :echoSuccess "sing-box 服务已安装 (mixed + tun)"
 exit /b 0
 REM ============================================================================
@@ -432,8 +432,6 @@ REM ============================================================================
 call :sbRunning
 if !errorlevel! neq 0 goto :stopSingbox_notrunning
 call :echoInfo "停止 sing-box..."
-"!WINSW_EXE!" stop "!WINSW_XML_MIXED!" >nul 2>nul
-"!WINSW_EXE!" stop "!WINSW_XML_TUN!" >nul 2>nul
 sc stop sing-box-mixed >nul 2>nul
 sc stop sing-box-tun >nul 2>nul
 set /a "_sw=0"
@@ -472,11 +470,11 @@ REM Stop the other service first
 sc query !OTHER_SVC! 2>nul | findstr /i "RUNNING" >nul 2>nul
 if !errorlevel! equ 0 (
     call :echoInfo "停止 !OTHER_SVC!..."
-    "!WINSW_EXE!" stop "!OTHER_XML!" >nul 2>nul
+    sc stop !OTHER_SVC! >nul 2>nul
 )
 REM Start target service
 call :echoInfo "启动 sing-box (%~1 模式)..."
-"!WINSW_EXE!" start "!TARGET_XML!" >nul 2>nul
+sc start !TARGET_SVC! >nul 2>nul
 timeout /t 5 /nobreak >nul 2>nul
 REM Check if running
 sc query !TARGET_SVC! 2>nul | findstr /i "RUNNING" >nul 2>nul
@@ -500,13 +498,13 @@ REM ============================================================================
 set "HAD_ERROR=0"
 sc query sing-box-mixed >nul 2>nul
 if !errorlevel! equ 0 (
-    "!WINSW_EXE!" stop "!WINSW_XML_MIXED!" >nul 2>nul
+    sc stop sing-box-mixed >nul 2>nul
     "!WINSW_EXE!" uninstall "!WINSW_XML_MIXED!" >nul 2>nul
     if !errorlevel! neq 0 set "HAD_ERROR=1"
 )
 sc query sing-box-tun >nul 2>nul
 if !errorlevel! equ 0 (
-    "!WINSW_EXE!" stop "!WINSW_XML_TUN!" >nul 2>nul
+    sc stop sing-box-tun >nul 2>nul
     "!WINSW_EXE!" uninstall "!WINSW_XML_TUN!" >nul 2>nul
     if !errorlevel! neq 0 set "HAD_ERROR=1"
 )
